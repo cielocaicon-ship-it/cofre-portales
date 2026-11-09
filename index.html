@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#1a0b3d" />
   <title>AR Arcade · El Cofre de los Portales</title>
 
@@ -19,6 +19,9 @@
     - Panel 2D 🎨: tamaño, distancia y color del balón en tiempo real.
     - LocalStorage: récord, preferencias e historial de interacciones
       (DevTools > Application > Local Storage).
+    - Diseñado para jugar en HORIZONTAL (pide girar el celular).
+    - Efectos: sonidos generados (Web Audio), confeti, monedas, racha 🔥
+      y aro que se mueve a partir de la 3ª canasta.
     - Debe abrirse desde HTTPS (GitHub Pages / Vercel) para la cámara.
     ============================================================
   -->
@@ -28,156 +31,171 @@
 
   <style>
     :root {
-      --morado: #1a0b3d;
-      --rosa: #ff2e88;
-      --oro: #ffd54f;
-      --naranja: #ff7a00;
-      --verde: #00e676;
-      --cian: #00e5ff;
-      --blanco: #ffffff;
+      --morado: #1a0b3d; --rosa: #ff2e88; --oro: #ffd54f; --naranja: #ff7a00;
+      --verde: #00e676; --cian: #00e5ff; --blanco: #ffffff;
+      --glass: rgba(20, 8, 48, .55);
+      --sl: max(12px, env(safe-area-inset-left));
+      --sr: max(12px, env(safe-area-inset-right));
+      --st: max(8px, env(safe-area-inset-top));
+      --sb: max(10px, env(safe-area-inset-bottom));
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background: #000;
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+      background: radial-gradient(circle at 50% 35%, #3a1680 0%, #1a0b3d 55%, #07021a 100%);
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      touch-action: none; user-select: none; -webkit-user-select: none;
+      touch-action: none; user-select: none; -webkit-user-select: none; color: #fff;
     }
     .hidden { display: none !important; }
 
-    /* ---------- HUD SUPERIOR ---------- */
+    /* ---------- CÁMARA + ESCENA + VIÑETA ---------- */
+    #camfeed { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: none; background: #000; }
+    body.cam-on #camfeed { display: block; }
+    a-scene { position: fixed !important; inset: 0; z-index: 1; }
+    #vignette {
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(26,11,61,.55) 100%);
+    }
+
+    /* ---------- BOTONES / PASTILLAS (vidrio) ---------- */
+    .pill, .ui-btn {
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      background: var(--glass); border: 1.5px solid rgba(255,255,255,.28); color: #fff;
+      border-radius: 999px; font-weight: 800; white-space: nowrap;
+      box-shadow: 0 4px 18px rgba(0,0,0,.25);
+    }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: clamp(13px, 2.4vmax, 19px); }
+    .ui-btn { pointer-events: auto; cursor: pointer; padding: 0; width: 42px; height: 42px; font-size: 18px; transition: transform .12s ease, background .2s; }
+    .ui-btn:active { transform: scale(.9); }
+    .ui-btn.wide { width: auto; padding: 10px 16px; font-size: 14px; }
+
+    /* ---------- HUD ---------- */
     #hud {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20; pointer-events: none;
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      padding: max(10px, env(safe-area-inset-top)) 12px 10px;
-      background: linear-gradient(180deg, rgba(26,11,61,.92), rgba(26,11,61,0));
-      pointer-events: none;
+      padding: var(--st) var(--sr) 8px var(--sl);
     }
-    .pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 7px 12px; border-radius: 999px;
-      background: rgba(0,0,0,.55); color: var(--blanco);
-      border: 2px solid rgba(255,255,255,.25);
-      font-weight: 800; font-size: clamp(13px, 3.8vw, 20px); white-space: nowrap;
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    }
-    #scorePill { border-color: var(--oro); color: var(--oro); }
+    .hud-left, .hud-right { display: flex; gap: 8px; align-items: center; }
+    #scorePill { border-color: var(--oro); color: var(--oro); box-shadow: 0 0 18px rgba(255,213,79,.35); }
     #scorePill.bump { animation: bump .45s ease; }
-    @keyframes bump { 0%{transform:scale(1)} 40%{transform:scale(1.3)} 100%{transform:scale(1)} }
-    #recordPill { font-size: clamp(11px, 3.2vw, 15px); opacity: .9; }
-    .hud-right { display: flex; gap: 6px; }
+    @keyframes bump { 0%{transform:scale(1)} 40%{transform:scale(1.25)} 100%{transform:scale(1)} }
+    #streakPill { border-color: var(--rosa); color: #fff; background: rgba(255,46,136,.45); }
 
-    .ui-btn {
-      pointer-events: auto; cursor: pointer;
-      border: none; border-radius: 999px;
-      padding: 8px 12px; font-weight: 800; font-size: clamp(12px, 3.5vw, 16px);
-      color: var(--blanco); background: rgba(255,255,255,.18);
-      border: 2px solid rgba(255,255,255,.35);
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      transition: transform .1s ease;
-    }
-    .ui-btn:active { transform: scale(.94); }
-
-    /* ---------- ESTADO ---------- */
+    /* ---------- MENSAJE DE ESTADO (se desvanece solo) ---------- */
     #status {
-      position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 54px);
-      left: 50%; transform: translateX(-50%); z-index: 20;
-      max-width: 92vw; text-align: center;
-      padding: 8px 16px; border-radius: 14px;
-      background: rgba(0,0,0,.6); color: #fff;
-      font-size: clamp(13px, 3.8vw, 17px); font-weight: 600;
-      pointer-events: none;
+      position: fixed; top: calc(var(--st) + 52px); left: 50%; transform: translateX(-50%);
+      z-index: 20; max-width: min(70vw, 560px); text-align: center; pointer-events: none;
+      padding: 7px 16px; border-radius: 14px; background: var(--glass);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-size: clamp(12px, 2vmax, 16px); font-weight: 600;
+      transition: opacity .6s ease; opacity: 1;
     }
+    #status.fade { opacity: 0; }
 
-    /* ---------- CONTROLES INFERIORES ---------- */
-    .controls {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-      display: flex; flex-direction: column; align-items: center; gap: 10px;
-      padding: 14px 16px max(18px, env(safe-area-inset-bottom));
-      background: linear-gradient(0deg, rgba(26,11,61,.92), rgba(26,11,61,0));
-      pointer-events: none;
+    /* ---------- CONTROLES ---------- */
+    .controls { position: fixed; z-index: 20; pointer-events: none; display: flex; flex-direction: column; gap: 8px; }
+    #basketControls { right: var(--sr); bottom: var(--sb); align-items: flex-end; width: min(46vw, 300px); }
+    #soccerControls { left: 50%; transform: translateX(-50%); bottom: var(--sb); align-items: center; }
+    .card {
+      padding: 10px 14px; border-radius: 16px; background: var(--glass);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,.2); width: 100%;
     }
-    .hint { margin: 0; color: #fff; text-align: center; font-size: clamp(12px, 3.6vw, 15px); opacity: .95; }
-    .stats { color: var(--cian); font-weight: 800; font-size: clamp(12px, 3.5vw, 15px); }
-
+    .hint { margin: 0; font-size: clamp(11px, 1.8vmax, 14px); opacity: .95; text-align: center; }
+    .stats { color: var(--cian); font-weight: 800; font-size: clamp(12px, 1.9vmax, 15px); text-align: center; }
     .meter {
-      position: relative; width: min(80vw, 420px); height: 18px;
-      border-radius: 999px; background: rgba(255,255,255,.18);
-      border: 2px solid rgba(255,255,255,.4); overflow: hidden;
+      position: relative; width: 100%; height: 14px; margin: 6px 0 2px;
+      border-radius: 999px; background: rgba(255,255,255,.15); border: 1.5px solid rgba(255,255,255,.35); overflow: hidden;
     }
-    .meter .zone {
-      position: absolute; top: 0; bottom: 0; left: 42%; width: 16%;
-      background: var(--verde); opacity: .85;
-    }
-    #needle {
-      position: absolute; top: -4px; bottom: -4px; width: 6px; margin-left: -3px;
-      background: #fff; border-radius: 3px; box-shadow: 0 0 8px #fff;
-      left: 0%;
-    }
+    .meter .zone { position: absolute; top: 0; bottom: 0; left: 42%; width: 16%; background: var(--verde); box-shadow: 0 0 12px var(--verde); }
+    #needle { position: absolute; top: -3px; bottom: -3px; width: 6px; margin-left: -3px; background: #fff; border-radius: 3px; box-shadow: 0 0 10px #fff; left: 0%; }
     .big {
-      font-size: clamp(18px, 5.5vw, 26px); padding: 14px 40px;
+      pointer-events: auto; cursor: pointer; border: 2px solid #fff; border-radius: 999px; color: #fff;
+      font-weight: 900; letter-spacing: .5px; font-size: clamp(17px, 2.8vmax, 24px); padding: 12px 34px;
       background: linear-gradient(135deg, var(--naranja), var(--rosa));
-      border-color: #fff; box-shadow: 0 6px 24px rgba(255,46,136,.55);
+      box-shadow: 0 6px 26px rgba(255,46,136,.6); animation: glow 1.6s ease-in-out infinite alternate;
     }
+    .big:active { transform: scale(.94); }
+    @keyframes glow { from { box-shadow: 0 6px 18px rgba(255,46,136,.45); } to { box-shadow: 0 6px 34px rgba(255,122,0,.85); } }
 
-    /* ---------- TOAST (mensaje grande) ---------- */
+    /* ---------- TOAST ---------- */
     #toast {
-      position: fixed; top: 42%; left: 50%; z-index: 30;
-      transform: translate(-50%, -50%) scale(.6); opacity: 0;
-      font-size: clamp(30px, 11vw, 64px); font-weight: 900; color: #fff;
-      text-align: center; white-space: nowrap;
-      text-shadow: 0 0 18px var(--rosa), 0 4px 0 #000;
-      pointer-events: none;
+      position: fixed; top: 46%; left: 50%; z-index: 30; pointer-events: none;
+      transform: translate(-50%, -50%) scale(.6); opacity: 0; white-space: nowrap; text-align: center;
+      font-size: clamp(28px, 8vmin, 60px); font-weight: 900; color: #fff;
+      text-shadow: 0 0 20px var(--rosa), 0 0 40px var(--naranja), 0 4px 0 #000;
     }
     #toast.show { animation: toast 1.3s ease forwards; }
     @keyframes toast {
-      0% { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
-      20% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); }
-      35% { transform: translate(-50%,-50%) scale(1); }
+      0% { opacity: 0; transform: translate(-50%,-50%) scale(.4) rotate(-6deg); }
+      20% { opacity: 1; transform: translate(-50%,-50%) scale(1.15) rotate(2deg); }
+      35% { transform: translate(-50%,-50%) scale(1) rotate(0); }
       80% { opacity: 1; }
-      100% { opacity: 0; transform: translate(-50%,-70%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%,-75%) scale(1); }
     }
 
     /* ---------- PANTALLA DE INICIO ---------- */
     #start {
-      position: fixed; inset: 0; z-index: 50;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 14px; padding: 24px; text-align: center; color: #fff;
-      background: radial-gradient(circle at 50% 20%, #5b1fa8 0%, var(--morado) 60%, #07021a 100%);
-      overflow-y: auto;
+      position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+      display: flex; align-items: center; justify-content: center; gap: clamp(16px, 5vw, 60px); flex-wrap: wrap;
+      padding: var(--st) var(--sr) var(--sb) var(--sl); text-align: center;
+      background: radial-gradient(circle at 30% 30%, #6a24c4 0%, #1a0b3d 55%, #07021a 100%);
     }
+    #start .col { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; }
     #start h1 {
-      margin: 0; font-size: clamp(28px, 8vw, 48px); line-height: 1.05;
+      margin: 0; font-size: clamp(30px, 6vmax, 56px); line-height: 1.02;
       background: linear-gradient(90deg, var(--oro), var(--rosa), var(--cian));
       -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 4px 18px rgba(255,46,136,.45));
     }
-    #start p { margin: 0; max-width: 460px; font-size: clamp(14px, 4vw, 17px); opacity: .92; }
-    #start a { color: var(--cian); font-weight: 700; }
-    #btnStart { margin-top: 6px; }
+    .logo { font-size: clamp(48px, 10vmin, 84px); animation: float 2.4s ease-in-out infinite; }
+    @keyframes float { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(4deg); } }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .chip { padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); }
+    #start ul { margin: 0; padding: 0; list-style: none; text-align: left; display: flex; flex-direction: column; gap: 8px; font-size: clamp(13px, 1.9vmax, 16px); }
+    #start li { background: rgba(255,255,255,.08); padding: 8px 12px; border-radius: 12px; }
 
-    /* ---------- CÁMARA DE FONDO + ESCENA ---------- */
-    #camfeed {
-      position: fixed; inset: 0; width: 100%; height: 100%;
-      object-fit: cover; z-index: 0; display: none; background: #000;
+    /* ---------- AVISO: GIRA EL CELULAR ---------- */
+    #rotate {
+      position: fixed; inset: 0; z-index: 100; display: none;
+      flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 30px; text-align: center;
+      background: radial-gradient(circle at 50% 40%, #5b1fa8, #07021a);
     }
-    body.cam-on #camfeed { display: block; }
-    a-scene { position: fixed !important; inset: 0; z-index: 1; }
+    #rotate .phone { font-size: 72px; animation: turn 1.8s ease-in-out infinite; }
+    @keyframes turn { 0%,20% { transform: rotate(0); } 50%,80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+    #rotate h2 { margin: 0; font-size: 24px; }
+    #rotate p { margin: 0; opacity: .85; font-size: 15px; }
+    @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
 
     /* ---------- PANEL DE CONTROLES 2D ---------- */
     #panel {
-      position: fixed; z-index: 40; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 100px);
-      width: min(84vw, 300px); padding: 14px; border-radius: 18px;
-      background: rgba(26,11,61,.9); color: #fff; border: 2px solid rgba(255,255,255,.25);
-      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      display: flex; flex-direction: column; gap: 10px; font-size: 14px;
+      position: fixed; z-index: 40; right: var(--sr); top: calc(var(--st) + 54px);
+      width: min(80vw, 270px); max-height: calc(100% - var(--st) - 70px); overflow-y: auto;
+      padding: 14px; border-radius: 18px; background: rgba(26,11,61,.88); border: 1.5px solid rgba(255,255,255,.25);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; gap: 9px; font-size: 14px;
     }
     #panel h3 { margin: 0; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
     #panel label { display: flex; justify-content: space-between; font-weight: 700; }
     #panel input[type=range] { width: 100%; accent-color: var(--rosa); }
     .swatches { display: flex; gap: 10px; }
-    .swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); cursor: pointer; padding: 0; }
+    .swatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); cursor: pointer; padding: 0; }
     .swatch.active { border-color: #fff; box-shadow: 0 0 10px #fff; }
     #panel .small { font-size: 12px; opacity: .8; margin: 0; }
+
+    /* Horizontal: inicio en dos columnas, todo más compacto */
+    @media (orientation: landscape) {
+      #status { top: calc(var(--st) + 4px); max-width: 38vw; font-size: clamp(11px, 3.4vmin, 15px); }
+      #start { flex-wrap: nowrap; }
+      #start .col { max-width: 44vw; }
+      #start h1 { font-size: clamp(26px, 10vmin, 52px); }
+      .logo { font-size: clamp(36px, 12vmin, 72px); }
+      #start ul { font-size: clamp(12px, 3.6vmin, 15px); }
+    }
+    /* Pantallas verticales (PC / artefacto): controles abajo al centro */
+    @media (orientation: portrait) {
+      #basketControls { right: 50%; transform: translateX(50%); align-items: center; width: min(90vw, 360px); }
+    }
   </style>
 </head>
 <body>
@@ -185,23 +203,44 @@
   <!-- Video de la cámara del celular (fondo de realidad aumentada) -->
   <video id="camfeed" autoplay playsinline muted></video>
 
+  <div id="vignette"></div>
+
+  <!-- ================= AVISO: GIRA EL CELULAR ================= -->
+  <div id="rotate">
+    <div class="phone">📱</div>
+    <h2>Gira tu celular</h2>
+    <p>Este juego se ve mejor en <b>horizontal</b>.<br>Si no gira, desactiva el bloqueo de rotación.</p>
+  </div>
+
   <!-- ================= PANTALLA DE INICIO ================= -->
   <div id="start" class="ui">
-    <h1>🗝️ El Cofre<br>de los Portales</h1>
-    <p>Realidad aumentada <b>sin marcador</b>: el cofre aparece frente a ti sobre lo que ve tu cámara.</p>
-    <p>📱 Mueve el celular para mirar alrededor, apunta con el <b style="color:var(--oro)">círculo amarillo</b> y toca la pantalla.</p>
-    <p>🎯 Si te pierdes, pulsa <b>Centrar</b>. 🎨 cambia tamaño, distancia y color.</p>
-    <button id="btnStart" class="ui-btn big">▶ JUGAR</button>
+    <div class="col">
+      <div class="logo">🗝️</div>
+      <h1>El Cofre de<br>los Portales</h1>
+      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">⚽ Fútbol</span><span class="chip">📷 Realidad aumentada</span></div>
+    </div>
+    <div class="col">
+      <ul>
+        <li>📷 El cofre aparece frente a ti sobre lo que ve tu cámara (sin marcador).</li>
+        <li>📱 Mueve el celular y apunta con el <b style="color:var(--oro)">círculo amarillo</b>; toca la pantalla para elegir.</li>
+        <li>🎯 Si te pierdes, pulsa <b>Centrar</b>. 🎨 cambia tamaño, distancia y color.</li>
+      </ul>
+      <button id="btnStart" class="big">▶ JUGAR</button>
+    </div>
   </div>
 
   <!-- ================= HUD ================= -->
   <div id="hud">
-    <span id="scorePill" class="pill">⭐ Puntos: <span id="score">0</span></span>
-    <div class="hud-right">
+    <div class="hud-left">
+      <span id="scorePill" class="pill">⭐ <span id="score">0</span></span>
       <span id="recordPill" class="pill">🏆 <span id="record">0</span></span>
+      <span id="streakPill" class="pill hidden">🔥 x<span id="streak">0</span></span>
+    </div>
+    <div class="hud-right">
+      <button id="btnSound" class="ui-btn ui" title="Sonido">🔊</button>
       <button id="btnCenter" class="ui-btn ui" title="Centrar">🎯</button>
       <button id="btnPanel" class="ui-btn ui" title="Panel de controles">🎨</button>
-      <button id="btnMenu" class="ui-btn ui hidden">🏠</button>
+      <button id="btnMenu" class="ui-btn ui hidden" title="Volver a los portales">🏠</button>
     </div>
   </div>
   <div id="status">Pulsa JUGAR para empezar</div>
@@ -222,22 +261,26 @@
       <button class="swatch" data-color="#00E676" style="background:#00E676" title="Verde"></button>
       <button class="swatch" data-color="#FFD54F" style="background:#FFD54F" title="Dorado"></button>
     </div>
-    <button id="btnReset" class="ui-btn">🧹 Borrar récord y estadísticas</button>
+    <button id="btnReset" class="ui-btn wide">🧹 Borrar récord y estadísticas</button>
     <p class="small">Se guarda en LocalStorage del navegador.</p>
   </div>
 
-  <!-- Controles baloncesto -->
+  <!-- Controles baloncesto (esquina inferior derecha) -->
   <div id="basketControls" class="controls hidden">
-    <span class="stats">Tiros: <span id="bShots">0</span> · Canastas: <span id="bHits">0</span></span>
-    <div class="meter"><div class="zone"></div><div id="needle"></div></div>
-    <button id="btnShoot" class="ui-btn ui big">🏀 LANZAR</button>
-    <p class="hint">Pulsa cuando la aguja esté en la zona verde… o desliza el dedo hacia arriba ⬆️</p>
+    <div class="card">
+      <div class="stats">🏀 <span id="bShots">0</span> tiros · ✅ <span id="bHits">0</span> canastas</div>
+      <div class="meter"><div class="zone"></div><div id="needle"></div></div>
+      <p class="hint">Lanza en la zona verde o desliza ⬆️</p>
+    </div>
+    <button id="btnShoot" class="big ui">🏀 LANZAR</button>
   </div>
 
-  <!-- Controles fútbol -->
+  <!-- Controles fútbol (abajo al centro) -->
   <div id="soccerControls" class="controls hidden">
-    <span class="stats">Tiros: <span id="sShots">0</span> · Goles: <span id="sGoals">0</span></span>
-    <p class="hint">⚽ Toca el balón cuando la flecha amarilla apunte a un hueco del arco</p>
+    <div class="card">
+      <div class="stats">⚽ <span id="sShots">0</span> tiros · 🥅 <span id="sGoals">0</span> goles</div>
+      <p class="hint">Toca el balón cuando la flecha apunte a un hueco del arco</p>
+    </div>
   </div>
 
   <!-- ================= ESCENA A-FRAME ================= -->
@@ -262,10 +305,13 @@
         color="#FFCC00"
         fuse="false"
         raycaster="objects: .clickable; far: 30"
+        geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.019"
         material="shader: flat; color: #FFCC00; opacity: 0.95"
         animation__in="property: scale; to: 1.7 1.7 1.7; dur: 150; startEvents: mouseenter"
         animation__out="property: scale; to: 1 1 1; dur: 150; startEvents: mouseleave"
         animation__tap="property: material.color; from: #FFFFFF; to: #FFCC00; dur: 300; startEvents: click">
+        <a-ring radius-inner="0.026" radius-outer="0.029" material="shader: flat; color: #FFFFFF; opacity: 0.6; transparent: true"
+          animation="property: scale; from: 1 1 1; to: 1.35 1.35 1.35; dir: alternate; loop: true; dur: 700; easing: easeInOutSine"></a-ring>
       </a-cursor>
     </a-camera>
 
@@ -277,7 +323,26 @@
     <!-- anchor: gira para "centrar" el juego frente al celular -->
     <a-entity id="anchor">
       <!-- world: escena del juego a 3 m delante (Z entre -2 y -4) -->
-      <a-entity id="world" position="0 0.3 -3" scale="2 2 2">
+      <a-entity id="world" position="0 0.45 -3" scale="2 2 2">
+
+        <!-- ============ PLATAFORMA HOLOGRÁFICA (menú) ============ -->
+        <a-entity id="menuBase">
+          <a-circle radius="0.55" rotation="-90 0 0" position="0 0 0" material="shader: flat; color: #00E5FF; opacity: 0.16; transparent: true; depthWrite: false"></a-circle>
+          <a-entity rotation="-90 0 0" animation="property: rotation; from: -90 0 0; to: -90 0 360; loop: true; dur: 8000; easing: linear">
+            <a-ring radius-inner="0.52" radius-outer="0.56" theta-length="300" material="shader: flat; color: #00E5FF; opacity: 0.9; transparent: true"></a-ring>
+            <a-ring radius-inner="0.44" radius-outer="0.455" theta-length="120" material="shader: flat; color: #FFFFFF; opacity: 0.7; transparent: true"></a-ring>
+          </a-entity>
+          <a-entity rotation="-90 0 0" animation="property: rotation; from: -90 0 360; to: -90 0 0; loop: true; dur: 5000; easing: linear">
+            <a-ring radius-inner="0.38" radius-outer="0.4" theta-length="200" material="shader: flat; color: #FF2E88; opacity: 0.9; transparent: true"></a-ring>
+          </a-entity>
+          <a-cylinder radius="0.5" height="0.9" position="0 0.45 0" open-ended="true"
+            material="shader: flat; color: #00E5FF; opacity: 0.045; transparent: true; side: double; depthWrite: false"></a-cylinder>
+          <!-- partículas que suben -->
+          <a-entity id="holoParticles"></a-entity>
+          <!-- sombra suave bajo el cofre -->
+          <a-circle radius="0.22" rotation="-90 0 0" position="0 0.004 0" material="shader: flat; color: #000; opacity: 0.35; transparent: true; depthWrite: false"
+            animation="property: scale; from: 1 1 1; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine"></a-circle>
+        </a-entity>
 
         <!-- ============ FASE 1: COFRE ============ -->
         <a-entity id="chest" position="0 0.3 0"
@@ -324,6 +389,16 @@
             <a-entity canvas-text="text: ¡TOCA EL COFRE!; color: #FFD54F; width: 1.4" position="0 0 0.002"></a-entity>
           </a-entity>
 
+          <!-- Gemas que orbitan el cofre -->
+          <a-entity id="gems" position="0 0.15 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000; easing: linear">
+            <a-octahedron radius="0.03" position="0.42 0 0" color="#FF2E88" material="emissive: #FF2E88; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
+            <a-octahedron radius="0.03" position="0.21 0.06 0.36" color="#00E5FF" material="emissive: #00E5FF; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
+            <a-octahedron radius="0.03" position="-0.21 0 0.36" color="#00E676" material="emissive: #00E676; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
+            <a-octahedron radius="0.03" position="-0.42 0.06 0" color="#FFD54F" material="emissive: #FFD54F; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
+            <a-octahedron radius="0.03" position="-0.21 0 -0.36" color="#B388FF" material="emissive: #B388FF; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
+            <a-octahedron radius="0.03" position="0.21 0.06 -0.36" color="#FF7A00" material="emissive: #FF7A00; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
+          </a-entity>
+
           <!-- Contenedor de chispas (se llenan por JS) -->
           <a-entity id="sparkles" position="0 0.3 0"></a-entity>
         </a-entity>
@@ -347,6 +422,14 @@
               <a-plane width="0.5" height="0.09" color="#FF7A00" material="opacity: 0.85; transparent: true; side: double"></a-plane>
               <a-entity canvas-text="text: BALONCESTO; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
             </a-entity>
+            <a-sphere radius="0.17" material="shader: flat; color: #FF7A00; opacity: 0.2; transparent: true; depthWrite: false"
+              animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
+            <a-entity animation="property: rotation; from: 0 0 0; to: 0 360 360; loop: true; dur: 3000; easing: linear">
+              <a-sphere radius="0.012" position="0.24 0 0" material="shader: flat; color: #FFFFFF"></a-sphere>
+              <a-sphere radius="0.012" position="-0.24 0 0" material="shader: flat; color: #FF7A00"></a-sphere>
+              <a-sphere radius="0.012" position="0 0.24 0" material="shader: flat; color: #FFFFFF"></a-sphere>
+              <a-sphere radius="0.012" position="0 -0.24 0" material="shader: flat; color: #FF7A00"></a-sphere>
+            </a-entity>
             <a-sphere class="clickable portal-hit" data-game="basket" radius="0.25"
               material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
           </a-entity>
@@ -365,16 +448,29 @@
               <a-plane width="0.42" height="0.09" color="#00C853" material="opacity: 0.85; transparent: true; side: double"></a-plane>
               <a-entity canvas-text="text: FUTBOL; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
             </a-entity>
+            <a-sphere radius="0.17" material="shader: flat; color: #00E676; opacity: 0.2; transparent: true; depthWrite: false"
+              animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
+            <a-entity animation="property: rotation; from: 0 0 0; to: 0 360 360; loop: true; dur: 3000; easing: linear">
+              <a-sphere radius="0.012" position="0.24 0 0" material="shader: flat; color: #FFFFFF"></a-sphere>
+              <a-sphere radius="0.012" position="-0.24 0 0" material="shader: flat; color: #00E676"></a-sphere>
+              <a-sphere radius="0.012" position="0 0.24 0" material="shader: flat; color: #FFFFFF"></a-sphere>
+              <a-sphere radius="0.012" position="0 -0.24 0" material="shader: flat; color: #00E676"></a-sphere>
+            </a-entity>
             <a-sphere class="clickable portal-hit" data-game="soccer" radius="0.25"
               material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
           </a-entity>
         </a-entity>
 
         <!-- ============ MINIJUEGO: BALONCESTO ============ -->
-        <a-entity id="basketGame" position="0 0 -0.4" visible="false">
+        <a-entity id="basketGame" position="0 0.1 -0.4" visible="false">
           <!-- Piso virtual -->
-          <a-circle radius="0.75" rotation="-90 0 0" position="0 0.001 -0.1" color="#3949AB" material="opacity: 0.55; transparent: true"></a-circle>
-          <a-ring radius-inner="0.3" radius-outer="0.32" rotation="-90 0 0" position="0 0.003 0.55" color="#FFFFFF"></a-ring>
+          <a-circle radius="0.8" rotation="-90 0 0" position="0 0.001 -0.1" material="shader: flat; color: #3D5AFE; opacity: 0.35; transparent: true; depthWrite: false"></a-circle>
+          <a-ring radius-inner="0.78" radius-outer="0.81" rotation="-90 0 0" position="0 0.002 -0.1" material="shader: flat; color: #00E5FF; opacity: 0.9; transparent: true"></a-ring>
+          <a-ring radius-inner="0.3" radius-outer="0.32" rotation="-90 0 0" position="0 0.003 0.55" material="shader: flat; color: #FFFFFF"></a-ring>
+          <a-ring radius-inner="0.12" radius-outer="0.2" rotation="-90 0 0" position="0 0.004 0.7" material="shader: flat; color: #FF2E88; opacity: 0.8; transparent: true"
+            animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 700"></a-ring>
+          <!-- Todo el aro (poste, tablero, red) se mueve junto -->
+          <a-entity id="hoopRig">
           <!-- Poste -->
           <a-cylinder radius="0.025" height="1.18" position="0 0.59 -0.86" color="#90A4AE" material="metalness: 0.6"></a-cylinder>
           <!-- Tablero -->
@@ -395,6 +491,10 @@
             color="#FFEA00" material="emissive: #FFEA00; emissiveIntensity: 1; opacity: 0; transparent: true"
             animation__s="property: scale; from: 1 1 1; to: 2.4 2.4 2.4; dur: 700; easing: easeOutQuad; startEvents: flash"
             animation__o="property: material.opacity; from: 1; to: 0; dur: 700; easing: easeOutQuad; startEvents: flash"></a-torus>
+          <!-- Luz del tablero -->
+          <a-box width="0.72" height="0.02" depth="0.035" position="0 1.38 -0.78" material="shader: flat; color: #00E5FF"></a-box>
+          <a-box width="0.72" height="0.02" depth="0.035" position="0 0.92 -0.78" material="shader: flat; color: #FF2E88"></a-box>
+          </a-entity>
           <!-- Balón -->
           <a-entity id="bball" position="0 0.2 0.7">
             <a-sphere id="bballSkin" radius="0.08" color="#FF7A00" material="roughness: 0.7"></a-sphere>
@@ -405,12 +505,17 @@
         </a-entity>
 
         <!-- ============ MINIJUEGO: FÚTBOL ============ -->
-        <a-entity id="soccerGame" position="0 0 -0.35" visible="false">
+        <a-entity id="soccerGame" position="0 0.2 -0.2" visible="false">
           <!-- Cancha -->
           <a-plane width="1.6" height="2.0" rotation="-90 0 0" position="0 0 -0.2" color="#2E7D32"></a-plane>
           <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 -0.45" color="#388E3C"></a-plane>
           <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 0.05" color="#388E3C"></a-plane>
           <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 0.55" color="#388E3C"></a-plane>
+          <!-- Bordes de neón -->
+          <a-box width="1.62" height="0.02" depth="0.02" position="0 0.01 -1.2" material="shader: flat; color: #00E5FF"></a-box>
+          <a-box width="1.62" height="0.02" depth="0.02" position="0 0.01 0.8" material="shader: flat; color: #00E5FF"></a-box>
+          <a-box width="0.02" height="0.02" depth="2.0" position="-0.8 0.01 -0.2" material="shader: flat; color: #FF2E88"></a-box>
+          <a-box width="0.02" height="0.02" depth="2.0" position="0.8 0.01 -0.2" material="shader: flat; color: #FF2E88"></a-box>
           <!-- Líneas -->
           <a-box width="1.4" height="0.004" depth="0.015" position="0 0.003 -0.9" color="#FFFFFF"></a-box>
           <a-box width="0.7" height="0.004" depth="0.015" position="0 0.003 -0.55" color="#FFFFFF"></a-box>
@@ -505,7 +610,8 @@
       gyro: false,            // ¿el celular tiene giroscopio?
       score: 0,
       record: 0,
-      started: false
+      started: false,
+      streak: 0              // aciertos seguidos
     };
 
     // ---------- Baloncesto ----------
@@ -523,7 +629,8 @@
       pos: new THREE.Vector3(), vel: new THREE.Vector3(),
       t: 0, scored: false, resetAt: 99,
       shots: 0, hits: 0,
-      meterPhase: 0, meter: 0
+      meterPhase: 0, meter: 0,
+      hoopPhase: 0, hoopX: 0, lastRim: -1
     };
 
     // ---------- Fútbol ----------
@@ -542,6 +649,112 @@
       shots: 0, goals: 0
     };
 
+
+    /* =========================================================
+       SONIDOS (generados con Web Audio, sin archivos)
+       ========================================================= */
+    const SFX = { ctx: null, on: true };
+    function sfxInit() {
+      try {
+        SFX.ctx = SFX.ctx || new (window.AudioContext || window.webkitAudioContext)();
+        if (SFX.ctx.state === 'suspended') SFX.ctx.resume();
+      } catch (e) {}
+    }
+    function tone(f, dur, type, vol, delay, slide) {
+      if (!SFX.on || !SFX.ctx) return;
+      try {
+        const c = SFX.ctx, t = c.currentTime + (delay || 0);
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type || 'sine';
+        o.frequency.setValueAtTime(f, t);
+        if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f * slide), t + dur);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol || 0.15, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + dur + 0.05);
+      } catch (e) {}
+    }
+    const sfx = {
+      open()   { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.28, 'triangle', 0.16, i * 0.08)); },
+      portal() { tone(260, 0.45, 'sawtooth', 0.06, 0, 3); tone(520, 0.35, 'sine', 0.12, 0.05, 2); },
+      shoot()  { tone(240, 0.18, 'triangle', 0.14, 0, 1.8); },
+      rim()    { tone(1500, 0.1, 'square', 0.04); tone(900, 0.12, 'square', 0.03, 0.02); },
+      score()  { [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.22, 'square', 0.07, i * 0.07)); },
+      kick()   { tone(140, 0.16, 'sine', 0.35, 0, 0.45); },
+      save()   { tone(200, 0.35, 'sawtooth', 0.1, 0, 0.55); },
+      miss()   { tone(330, 0.3, 'triangle', 0.09, 0, 0.6); },
+      tap()    { tone(880, 0.06, 'sine', 0.07); }
+    };
+
+    /* =========================================================
+       EFECTOS 3D: confeti, monedas, texto flotante, racha
+       ========================================================= */
+    const CONFETTI = ['#FFD54F', '#FF2E88', '#00E5FF', '#00E676', '#FFFFFF', '#B388FF'];
+    function burst(parent, x, y, z, count, spread) {
+      for (let i = 0; i < count; i++) {
+        const b = document.createElement('a-box');
+        const c = CONFETTI[i % CONFETTI.length];
+        const a = Math.random() * Math.PI * 2, r = spread * (0.4 + Math.random() * 0.6);
+        const to = `${(x + Math.cos(a) * r).toFixed(3)} ${(y + 0.15 + Math.random() * spread).toFixed(3)} ${(z + Math.sin(a) * r).toFixed(3)}`;
+        b.setAttribute('width', 0.025); b.setAttribute('height', 0.012); b.setAttribute('depth', 0.004);
+        b.setAttribute('position', `${x} ${y} ${z}`);
+        b.setAttribute('material', `shader: flat; color: ${c}; transparent: true; opacity: 1; side: double`);
+        b.setAttribute('animation__m', `property: position; to: ${to}; dur: 1000; easing: easeOutCubic`);
+        b.setAttribute('animation__r', `property: rotation; to: ${Math.random() * 720} ${Math.random() * 720} ${Math.random() * 720}; dur: 1000`);
+        b.setAttribute('animation__f', 'property: material.opacity; from: 1; to: 0; dur: 1000; delay: 300; easing: easeInQuad');
+        parent.appendChild(b);
+        setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 1400);
+      }
+    }
+    function coins(parent, count) {
+      for (let i = 0; i < count; i++) {
+        const c = document.createElement('a-cylinder');
+        const a = Math.random() * Math.PI * 2, r = 0.1 + Math.random() * 0.3;
+        c.setAttribute('radius', 0.035); c.setAttribute('height', 0.008);
+        c.setAttribute('rotation', '90 0 0');
+        c.setAttribute('material', 'color: #FFD700; metalness: 0.9; roughness: 0.2; emissive: #FFB300; emissiveIntensity: 0.5; transparent: true; opacity: 1');
+        c.setAttribute('animation__m', `property: position; from: 0 0 0; to: ${(Math.cos(a) * r).toFixed(3)} ${(0.45 + Math.random() * 0.45).toFixed(3)} ${(Math.sin(a) * r).toFixed(3)}; dur: 1100; easing: easeOutQuad`);
+        c.setAttribute('animation__r', `property: rotation; from: 90 0 0; to: 90 ${720 + Math.random() * 720} 0; dur: 1100; easing: linear`);
+        c.setAttribute('animation__f', 'property: material.opacity; from: 1; to: 0; dur: 500; delay: 900');
+        parent.appendChild(c);
+        setTimeout(() => c.parentNode && c.parentNode.removeChild(c), 1600);
+      }
+    }
+    function popText(parent, x, y, z, text, color) {
+      const e = document.createElement('a-entity');
+      e.setAttribute('canvas-text', `text: ${text}; color: ${color}; width: 2.4`);
+      e.setAttribute('position', `${x} ${y} ${z}`);
+      e.setAttribute('animation__m', `property: position; to: ${x} ${y + 0.4} ${z}; dur: 1000; easing: easeOutCubic`);
+      e.setAttribute('animation__s', 'property: scale; from: 0.4 0.4 0.4; to: 1.2 1.2 1.2; dur: 400; easing: easeOutBack');
+      parent.appendChild(e);
+      setTimeout(() => e.parentNode && e.parentNode.removeChild(e), 1050);
+    }
+    function hit() {
+      G.streak++;
+      $('streak').textContent = G.streak;
+      $('streakPill').classList.toggle('hidden', G.streak < 2);
+      return G.streak > 1 ? `  🔥x${G.streak}` : '';
+    }
+    function missed() {
+      G.streak = 0;
+      $('streakPill').classList.add('hidden');
+    }
+    // Partículas holográficas que suben (se crean una vez)
+    function makeHoloParticles() {
+      const box = $('holoParticles');
+      for (let i = 0; i < 14; i++) {
+        const sp = document.createElement('a-sphere');
+        const a = Math.random() * Math.PI * 2, r = 0.15 + Math.random() * 0.35;
+        const x = (Math.cos(a) * r).toFixed(3), z = (Math.sin(a) * r).toFixed(3);
+        sp.setAttribute('radius', 0.008 + Math.random() * 0.008);
+        sp.setAttribute('material', `shader: flat; color: ${i % 2 ? '#00E5FF' : '#FFFFFF'}; transparent: true; opacity: 0.9`);
+        sp.setAttribute('animation__m', `property: position; from: ${x} 0 ${z}; to: ${x} 0.9 ${z}; dur: ${2200 + Math.random() * 1800}; delay: ${Math.random() * 2000}; loop: true; easing: linear`);
+        sp.setAttribute('animation__f', `property: material.opacity; from: 0.9; to: 0; dur: 2600; delay: ${Math.random() * 2000}; loop: true; easing: easeInQuad`);
+        box.appendChild(sp);
+      }
+    }
+
     /* =========================================================
        UTILIDADES DE INTERFAZ
        ========================================================= */
@@ -558,10 +771,19 @@
       soccer: '⚽ Toca el balón para patear'
     };
 
-    function setStatus(txt) { $('status').textContent = txt; }
+    let statusTimer = null;
+    function setStatus(txt, keep) {
+      const el = $('status');
+      el.textContent = txt;
+      el.classList.remove('fade');
+      clearTimeout(statusTimer);
+      if (!keep) statusTimer = setTimeout(() => el.classList.add('fade'), 5000);
+    }
 
     function refreshStatus() {
       if (!G.started) return;
+      // En los minijuegos las instrucciones ya están en las tarjetas de abajo
+      if (G.mode === 'basket' || G.mode === 'soccer') { $('status').classList.add('fade'); return; }
       setStatus((G.gyro ? STATUS_GYRO : STATUS_TOUCH)[G.mode] || '');
     }
 
@@ -622,6 +844,8 @@
       $('chestLight').emit('open');
       show($('chestLabel'), false);
       burstSparkles();
+      coins($('sparkles'), 12);
+      sfx.open();
 
       // Aparecen los portales
       setTimeout(() => {
@@ -658,6 +882,7 @@
 
     function hideMenu() {
       show($('chest'), false);
+      show($('menuBase'), false);
       show($('portals'), false);
       document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, false));
     }
@@ -673,6 +898,7 @@
       refreshRaycaster();
       refreshStatus();
       toast('🏀 ¡A encestar!');
+      sfx.portal(); missed();
       registrarInteraccion('Entrar a minijuego', 'Baloncesto');
       setTimeout(recenter, 50);
     }
@@ -689,6 +915,7 @@
       refreshRaycaster();
       refreshStatus();
       toast('⚽ ¡A meter gol!');
+      sfx.portal(); missed();
       registrarInteraccion('Entrar a minijuego', 'Fútbol');
       setTimeout(recenter, 50);
     }
@@ -703,6 +930,7 @@
       $('btnMenu').classList.add('hidden');
 
       show($('chest'), true);
+      show($('menuBase'), true);
       show($('portals'), true);
       document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, true));
       G.mode = 'menu';
@@ -731,6 +959,7 @@
       B.t = 0; B.scored = false; B.resetAt = 3;
       B.shots++;
       $('bShots').textContent = B.shots;
+      sfx.shoot();
     }
 
     function basketStep(h) {
@@ -743,7 +972,7 @@
       // Tablero
       if (B.vel.z < 0 &&
           B.pos.z - r < B.BOARD_Z && B.pos.z > B.BOARD_Z - 0.12 &&
-          Math.abs(B.pos.x) < B.BOARD_X + r * 0.5 &&
+          Math.abs(B.pos.x - B.hoopX) < B.BOARD_X + r * 0.5 &&
           B.pos.y > B.BOARD_Y0 - r * 0.5 && B.pos.y < B.BOARD_Y1 + r * 0.5) {
         B.pos.z = B.BOARD_Z + r;
         B.vel.z = -B.vel.z * 0.6;
@@ -763,6 +992,7 @@
         const vn = B.vel.x * ux + B.vel.y * uy + B.vel.z * uz;
         if (vn < 0) {
           B.vel.x -= 1.6 * vn * ux; B.vel.y -= 1.6 * vn * uy; B.vel.z -= 1.6 * vn * uz;
+          if (B.t - B.lastRim > 0.15) { sfx.rim(); B.lastRim = B.t; }
         }
       }
 
@@ -774,7 +1004,11 @@
         B.vel.x *= 0.3; B.vel.z *= 0.3; B.vel.y *= 0.5;   // la red frena el balón
         B.resetAt = B.t + 1.2;
         addPoints(10);
-        toast('🏀 ¡CANASTA! +10');
+        toast('🏀 ¡CANASTA! +10' + hit());
+        sfx.score();
+        burst($('hoopRig'), 0, 1.0, -0.5, 26, 0.35);
+        popText($('hoopRig'), 0, 1.25, -0.45, '+10', '#FFD54F');
+        if (B.hits === 3) setTimeout(() => toast('⚠️ ¡El aro se mueve!'), 1300);
         registrarInteraccion('Canasta', 'Baloncesto');
         $('hoopFlash').emit('flash');
       }
@@ -788,6 +1022,13 @@
     }
 
     function updateBasket(dt) {
+      // Aro móvil: empieza a moverse desde la 3ª canasta y cada vez más
+      const amp = Math.min(0.3, Math.max(0, (B.hits - 2) * 0.07));
+      B.hoopPhase += dt * (1 + B.hits * 0.05);
+      B.hoopX = amp * Math.sin(B.hoopPhase);
+      B.HOOP.x = B.hoopX;
+      $('hoopRig').object3D.position.x = B.hoopX;
+
       // Medidor de potencia
       if (B.state === 'ready') {
         B.meterPhase += dt * 2.6;
@@ -805,7 +1046,7 @@
 
       const out = B.pos.y < -0.3 || Math.abs(B.pos.x) > 2 || B.pos.z > 2 || B.pos.z < -2;
       if (B.t >= B.resetAt || out) {
-        if (!B.scored) toast('😅 ¡Casi!');
+        if (!B.scored) { toast('😅 ¡Casi!'); sfx.miss(); missed(); }
         resetBasketBall();
       }
     }
@@ -831,6 +1072,7 @@
       S.t = 0; S.result = null; S.resetAt = 3.5;
       S.shots++;
       $('sShots').textContent = S.shots;
+      sfx.kick();
       show($('arrow'), false);
     }
 
@@ -847,15 +1089,20 @@
         S.goals++;
         $('sGoals').textContent = S.goals;
         addPoints(10);
-        toast('⚽ ¡GOOOL! +10');
+        toast('⚽ ¡GOOOL! +10' + hit());
+        sfx.score();
+        burst($('soccerGame'), S.pos.x, 0.25, -1.0, 30, 0.4);
+        popText($('soccerGame'), 0, 0.55, -0.95, '+10', '#FFD54F');
         registrarInteraccion('Gol', 'Fútbol');
         $('goalFlash').emit('flash');
         S.keeperSpeed = Math.min(S.keeperSpeed + 0.3, 4.2);   // dificultad progresiva
       } else if (res === 'save') {
         toast('🧤 ¡ATAJADA!');
+        sfx.save(); missed();
         registrarInteraccion('Atajada', 'Fútbol');
       } else if (res === 'out') {
         toast('❌ ¡Afuera!');
+        sfx.miss(); missed();
       }
     }
 
@@ -953,7 +1200,7 @@
       const out = Math.abs(S.pos.x) > 1.3 || S.pos.z > 1.3 || S.pos.z < -1.6;
       if (out && !S.result) setResult('out');
       if (S.t >= S.resetAt) {
-        if (!S.result) toast('🙃 Sin gol');
+        if (!S.result) { toast('🙃 Sin gol'); missed(); }
         resetSoccerBall();
       }
     }
@@ -1027,6 +1274,24 @@
       refreshStatus();
     }
 
+    // Horizontal: lente más cerrado para que el juego se vea más grande
+    function fitFov() {
+      const landscape = window.innerWidth > window.innerHeight;
+      $('cam').setAttribute('camera', 'fov', landscape ? 60 : 75);
+    }
+
+    // Intenta pantalla completa y bloquear en horizontal (Android). En iPhone se gira a mano.
+    function goLandscape() {
+      try {
+        const de = document.documentElement;
+        if (de.requestFullscreen && !document.fullscreenElement) {
+          de.requestFullscreen({ navigationUI: 'hide' }).then(() => {
+            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+
     // Pone el juego justo delante de hacia donde mira el celular
     function recenter() {
       const cam = $('cam').object3D;
@@ -1042,7 +1307,7 @@
     function applyPrefs() {
       const w = $('world');
       w.object3D.scale.set(PREFS.size, PREFS.size, PREFS.size);
-      w.object3D.position.set(0, 0.3, -PREFS.dist);
+      w.object3D.position.set(0, 0.45, -PREFS.dist);
       $('bballSkin').setAttribute('color', PREFS.color);
       $('sballSkin').setAttribute('color', PREFS.color === '#FF7A00' ? '#FFFFFF' : PREFS.color);
       $('sizeVal').textContent = PREFS.size.toFixed(1) + 'x';
@@ -1063,14 +1328,16 @@
       try { G.record = parseInt(localStorage.getItem('arCofreRecord') || '0', 10) || 0; } catch (e) {}
       try { Object.assign(PREFS, JSON.parse(localStorage.getItem('arCofrePrefs') || '{}')); } catch (e) {}
       $('record').textContent = G.record;
-      const ready = () => applyPrefs();
+      const ready = () => { applyPrefs(); fitFov(); makeHoloParticles(); };
       if (scene.hasLoaded) ready(); else scene.addEventListener('loaded', ready, { once: true });
 
       // JUGAR: cámara de fondo + giroscopio
       $('btnStart').addEventListener('click', async () => {
         $('start').classList.add('hidden');
-        setStatus('📷 Abriendo cámara…');
+        setStatus('📷 Abriendo cámara…', true);
+        sfxInit(); sfx.tap();
         const gyroPromise = enableGyro();          // se pide dentro del toque (iPhone lo exige)
+        goLandscape();
         const camOk = await startCameraFeed();
         const gyro = await gyroPromise;
         G.started = true;
@@ -1090,7 +1357,15 @@
 
       // Botones HTML
       $('btnMenu').addEventListener('click', () => { backToMenu(); setTimeout(recenter, 50); });
-      $('btnCenter').addEventListener('click', () => { recenter(); toast('🎯 Centrado'); });
+      $('btnCenter').addEventListener('click', () => { recenter(); sfx.tap(); toast('🎯 Centrado'); });
+      $('btnSound').addEventListener('click', () => {
+        sfxInit();
+        SFX.on = !SFX.on;
+        $('btnSound').textContent = SFX.on ? '🔊' : '🔇';
+        if (SFX.on) sfx.tap();
+      });
+      window.addEventListener('resize', fitFov);
+      window.addEventListener('orientationchange', () => setTimeout(() => { fitFov(); recenter(); }, 500));
       $('btnPanel').addEventListener('click', () => $('panel').classList.toggle('hidden'));
       $('btnClosePanel').addEventListener('click', () => $('panel').classList.add('hidden'));
       $('sizeRange').addEventListener('input', (e) => { PREFS.size = parseFloat(e.target.value); applyPrefs(); });
