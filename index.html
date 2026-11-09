@@ -8,24 +8,23 @@
 
   <!--
     ============================================================
-    AR ARCADE · EL COFRE DE LOS PORTALES
-    WebAR con A-Frame 1.5.0 + MindAR 1.2.5 (rastreo de imagen)
+    AR ARCADE · EL COFRE DE LOS PORTALES  (versión SIN marcador)
+    A-Frame 1.5.0 — basado en la Clase 13 (Realidad Aumentada en la Web)
     ------------------------------------------------------------
-    - Debe abrirse desde HTTPS (GitHub Pages / Vercel) para que
-      el navegador permita usar la cámara.
-    - Marcador por defecto: la tarjeta de ejemplo de MindAR
-      (el enlace aparece en la pantalla de inicio).
-    - Para usar tu propio marcador: compílalo en
-      https://hiukim.github.io/mind-ar-js-doc/tools/compile
-      y cambia las URLs de MARKER_MIND y MARKER_IMG (abajo)
-      y el atributo imageTargetSrc de <a-scene>.
+    - La cámara trasera del celular se muestra de fondo y la escena
+      3D aparece delante (entre -2 m y -4 m, zona ergonómica).
+    - Se apunta moviendo el celular (giroscopio) con el <a-cursor>
+      amarillo y se toca la pantalla para "hacer clic" (raycaster).
+    - Sin giroscopio (PC) se toca o hace clic directo en los objetos.
+    - Panel 2D 🎨: tamaño, distancia y color del balón en tiempo real.
+    - LocalStorage: récord, preferencias e historial de interacciones
+      (DevTools > Application > Local Storage).
+    - Debe abrirse desde HTTPS (GitHub Pages / Vercel) para la cámara.
     ============================================================
   -->
 
-  <!-- A-Frame (incluye cursor, raycaster y animation de forma nativa) -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <!-- MindAR para A-Frame (rastreo de imagen) -->
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- A-Frame (trae cursor, raycaster y animation de forma nativa) -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
 
   <style>
     :root {
@@ -40,7 +39,7 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background: transparent;
+      overflow: hidden; background: #000;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       touch-action: none; user-select: none; -webkit-user-select: none;
     }
@@ -56,10 +55,10 @@
     }
     .pill {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 14px; border-radius: 999px;
+      padding: 7px 12px; border-radius: 999px;
       background: rgba(0,0,0,.55); color: var(--blanco);
       border: 2px solid rgba(255,255,255,.25);
-      font-weight: 800; font-size: clamp(14px, 4vw, 20px);
+      font-weight: 800; font-size: clamp(13px, 3.8vw, 20px); white-space: nowrap;
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     }
     #scorePill { border-color: var(--oro); color: var(--oro); }
@@ -153,31 +152,46 @@
       -webkit-background-clip: text; background-clip: text; color: transparent;
     }
     #start p { margin: 0; max-width: 460px; font-size: clamp(14px, 4vw, 17px); opacity: .92; }
-    #start .marker {
-      width: min(46vw, 200px); border-radius: 12px; border: 3px solid var(--oro);
-      box-shadow: 0 0 24px rgba(255,213,79,.5);
-    }
     #start a { color: var(--cian); font-weight: 700; }
-    .orient { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-    .orient .ui-btn.active { background: var(--cian); color: #000; border-color: #fff; }
     #btnStart { margin-top: 6px; }
+
+    /* ---------- CÁMARA DE FONDO + ESCENA ---------- */
+    #camfeed {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; z-index: 0; display: none; background: #000;
+    }
+    body.cam-on #camfeed { display: block; }
+    a-scene { position: fixed !important; inset: 0; z-index: 1; }
+
+    /* ---------- PANEL DE CONTROLES 2D ---------- */
+    #panel {
+      position: fixed; z-index: 40; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 100px);
+      width: min(84vw, 300px); padding: 14px; border-radius: 18px;
+      background: rgba(26,11,61,.9); color: #fff; border: 2px solid rgba(255,255,255,.25);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: flex; flex-direction: column; gap: 10px; font-size: 14px;
+    }
+    #panel h3 { margin: 0; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+    #panel label { display: flex; justify-content: space-between; font-weight: 700; }
+    #panel input[type=range] { width: 100%; accent-color: var(--rosa); }
+    .swatches { display: flex; gap: 10px; }
+    .swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); cursor: pointer; padding: 0; }
+    .swatch.active { border-color: #fff; box-shadow: 0 0 10px #fff; }
+    #panel .small { font-size: 12px; opacity: .8; margin: 0; }
   </style>
 </head>
 <body>
 
+  <!-- Video de la cámara del celular (fondo de realidad aumentada) -->
+  <video id="camfeed" autoplay playsinline muted></video>
+
   <!-- ================= PANTALLA DE INICIO ================= -->
   <div id="start" class="ui">
     <h1>🗝️ El Cofre<br>de los Portales</h1>
-    <p>Apunta la cámara a este marcador (ábrelo en otro dispositivo o imprímelo):</p>
-    <a id="markerLink" href="#" target="_blank" rel="noopener">
-      <img id="markerImg" class="marker" alt="Imagen marcador" />
-    </a>
-    <p>¿Dónde está el marcador?</p>
-    <div class="orient">
-      <button class="ui-btn active" data-orient="mesa">🟫 Sobre la mesa</button>
-      <button class="ui-btn" data-orient="pared">🖥️ En pantalla / pared</button>
-    </div>
-    <button id="btnStart" class="ui-btn big">▶ INICIAR CÁMARA</button>
+    <p>Realidad aumentada <b>sin marcador</b>: el cofre aparece frente a ti sobre lo que ve tu cámara.</p>
+    <p>📱 Mueve el celular para mirar alrededor, apunta con el <b style="color:var(--oro)">círculo amarillo</b> y toca la pantalla.</p>
+    <p>🎯 Si te pierdes, pulsa <b>Centrar</b>. 🎨 cambia tamaño, distancia y color.</p>
+    <button id="btnStart" class="ui-btn big">▶ JUGAR</button>
   </div>
 
   <!-- ================= HUD ================= -->
@@ -185,12 +199,32 @@
     <span id="scorePill" class="pill">⭐ Puntos: <span id="score">0</span></span>
     <div class="hud-right">
       <span id="recordPill" class="pill">🏆 <span id="record">0</span></span>
-      <button id="btnOrient" class="ui-btn ui" title="Cambiar orientación">🔄</button>
-      <button id="btnMenu" class="ui-btn ui hidden">🏠 Menú</button>
+      <button id="btnCenter" class="ui-btn ui" title="Centrar">🎯</button>
+      <button id="btnPanel" class="ui-btn ui" title="Panel de controles">🎨</button>
+      <button id="btnMenu" class="ui-btn ui hidden">🏠</button>
     </div>
   </div>
-  <div id="status">Pulsa INICIAR para activar la cámara</div>
+  <div id="status">Pulsa JUGAR para empezar</div>
   <div id="toast"></div>
+
+  <!-- ================= PANEL DE CONTROLES 2D ================= -->
+  <div id="panel" class="ui hidden">
+    <h3>🎨 Controles <button id="btnClosePanel" class="ui-btn">✕</button></h3>
+    <label>Tamaño <span id="sizeVal">2.0x</span></label>
+    <input id="sizeRange" type="range" min="1.4" max="2.6" step="0.1" value="2" />
+    <label>Distancia <span id="distVal">3.0 m</span></label>
+    <input id="distRange" type="range" min="2" max="4" step="0.1" value="3" />
+    <label>Color del balón</label>
+    <div class="swatches">
+      <button class="swatch" data-color="#FF7A00" style="background:#FF7A00" title="Naranja"></button>
+      <button class="swatch" data-color="#FF2E88" style="background:#FF2E88" title="Rosa"></button>
+      <button class="swatch" data-color="#00E5FF" style="background:#00E5FF" title="Cian"></button>
+      <button class="swatch" data-color="#00E676" style="background:#00E676" title="Verde"></button>
+      <button class="swatch" data-color="#FFD54F" style="background:#FFD54F" title="Dorado"></button>
+    </div>
+    <button id="btnReset" class="ui-btn">🧹 Borrar récord y estadísticas</button>
+    <p class="small">Se guarda en LocalStorage del navegador.</p>
+  </div>
 
   <!-- Controles baloncesto -->
   <div id="basketControls" class="controls hidden">
@@ -206,35 +240,44 @@
     <p class="hint">⚽ Toca el balón cuando la flecha amarilla apunte a un hueco del arco</p>
   </div>
 
-  <!-- ================= ESCENA A-FRAME + MINDAR ================= -->
+  <!-- ================= ESCENA A-FRAME ================= -->
   <a-scene
     id="scene"
-    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001"
-    color-space="sRGB"
-    renderer="colorManagement: true; antialias: true"
+    renderer="colorManagement: true; antialias: true; alpha: true"
     vr-mode-ui="enabled: false"
     xr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
+    loading-screen="enabled: false"
     game-manager>
 
-    <!-- Cámara con cursor por toque/clic + raycaster limitado a objetos .clickable -->
+    <!-- Cámara a altura humana (1.6 m). Gira con el giroscopio del celular -->
     <a-camera
       id="cam"
-      position="0 0 0"
-      look-controls="enabled: false"
-      cursor="fuse: false; rayOrigin: mouse"
-      raycaster="far: 10000; objects: .clickable">
+      position="0 1.6 0"
+      look-controls="magicWindowTrackingEnabled: true; touchEnabled: false; mouseEnabled: false"
+      wasd-controls="enabled: false">
+      <!-- Cursor espacial (raycaster) hijo de la cámara -->
+      <a-cursor
+        id="cursor-raycast"
+        color="#FFCC00"
+        fuse="false"
+        raycaster="objects: .clickable; far: 30"
+        material="shader: flat; color: #FFCC00; opacity: 0.95"
+        animation__in="property: scale; to: 1.7 1.7 1.7; dur: 150; startEvents: mouseenter"
+        animation__out="property: scale; to: 1 1 1; dur: 150; startEvents: mouseleave"
+        animation__tap="property: material.color; from: #FFFFFF; to: #FFCC00; dur: 300; startEvents: click">
+      </a-cursor>
     </a-camera>
 
     <!-- Luces -->
-    <a-entity light="type: ambient; color: #ffffff; intensity: 0.75"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 0.9" position="0.6 1 1"></a-entity>
-    <a-entity light="type: directional; color: #b388ff; intensity: 0.4" position="-1 0.5 0.5"></a-entity>
+    <a-entity light="type: ambient; color: #ffffff; intensity: 0.8"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.9" position="0.6 3 1"></a-entity>
+    <a-entity light="type: directional; color: #b388ff; intensity: 0.4" position="-1 1 0.5"></a-entity>
 
-    <!-- Todo el contenido vive sobre el marcador -->
-    <a-entity id="target" mindar-image-target="targetIndex: 0">
-      <!-- "world": se rota 90° en X si el marcador está sobre la mesa -->
-      <a-entity id="world" rotation="90 0 0">
+    <!-- anchor: gira para "centrar" el juego frente al celular -->
+    <a-entity id="anchor">
+      <!-- world: escena del juego a 3 m delante (Z entre -2 y -4) -->
+      <a-entity id="world" position="0 0.3 -3" scale="2 2 2">
 
         <!-- ============ FASE 1: COFRE ============ -->
         <a-entity id="chest" position="0 0.3 0"
@@ -278,7 +321,7 @@
           <!-- Etiqueta -->
           <a-entity id="chestLabel" position="0 0.62 0">
             <a-plane width="0.62" height="0.12" color="#000" material="opacity: 0.55; transparent: true; side: double"></a-plane>
-            <a-text value="¡TOCA EL COFRE!" align="center" width="1.4" color="#FFD54F" position="0 0 0.002" side="double"></a-text>
+            <a-entity canvas-text="text: ¡TOCA EL COFRE!; color: #FFD54F; width: 1.4" position="0 0 0.002"></a-entity>
           </a-entity>
 
           <!-- Contenedor de chispas (se llenan por JS) -->
@@ -302,7 +345,7 @@
               animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 2500; easing: linear"></a-torus>
             <a-entity position="0 -0.27 0">
               <a-plane width="0.5" height="0.09" color="#FF7A00" material="opacity: 0.85; transparent: true; side: double"></a-plane>
-              <a-text value="BALONCESTO" align="center" width="1.1" color="#FFFFFF" position="0 0 0.002" side="double"></a-text>
+              <a-entity canvas-text="text: BALONCESTO; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
             </a-entity>
             <a-sphere class="clickable portal-hit" data-game="basket" radius="0.25"
               material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
@@ -320,7 +363,7 @@
               animation="property: rotation; from: 0 0 360; to: 0 0 0; loop: true; dur: 2500; easing: linear"></a-torus>
             <a-entity position="0 -0.27 0">
               <a-plane width="0.42" height="0.09" color="#00C853" material="opacity: 0.85; transparent: true; side: double"></a-plane>
-              <a-text value="FUTBOL" align="center" width="1.1" color="#FFFFFF" position="0 0 0.002" side="double"></a-text>
+              <a-entity canvas-text="text: FUTBOL; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
             </a-entity>
             <a-sphere class="clickable portal-hit" data-game="soccer" radius="0.25"
               material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
@@ -328,7 +371,7 @@
         </a-entity>
 
         <!-- ============ MINIJUEGO: BALONCESTO ============ -->
-        <a-entity id="basketGame" visible="false">
+        <a-entity id="basketGame" position="0 0 -0.4" visible="false">
           <!-- Piso virtual -->
           <a-circle radius="0.75" rotation="-90 0 0" position="0 0.001 -0.1" color="#3949AB" material="opacity: 0.55; transparent: true"></a-circle>
           <a-ring radius-inner="0.3" radius-outer="0.32" rotation="-90 0 0" position="0 0.003 0.55" color="#FFFFFF"></a-ring>
@@ -338,7 +381,7 @@
           <a-box width="0.7" height="0.45" depth="0.03" position="0 1.15 -0.78" color="#FFFFFF" material="opacity: 0.92; transparent: true"></a-box>
           <a-box width="0.28" height="0.2" depth="0.005" position="0 1.08 -0.762" color="#FF1744"></a-box>
           <a-box width="0.24" height="0.16" depth="0.006" position="0 1.08 -0.761" color="#FFFFFF"></a-box>
-          <a-text value="AR BASKET" align="center" width="1.2" color="#1A237E" position="0 1.32 -0.762"></a-text>
+          <a-entity canvas-text="text: AR BASKET; color: #1A237E; width: 1.2" position="0 1.32 -0.762"></a-entity>
           <!-- Soporte del aro -->
           <a-box width="0.04" height="0.02" depth="0.05" position="0 1.0 -0.74" color="#FF3D00"></a-box>
           <!-- Aro (horizontal) -->
@@ -354,7 +397,7 @@
             animation__o="property: material.opacity; from: 1; to: 0; dur: 700; easing: easeOutQuad; startEvents: flash"></a-torus>
           <!-- Balón -->
           <a-entity id="bball" position="0 0.2 0.7">
-            <a-sphere radius="0.08" color="#FF7A00" material="roughness: 0.7"></a-sphere>
+            <a-sphere id="bballSkin" radius="0.08" color="#FF7A00" material="roughness: 0.7"></a-sphere>
             <a-torus radius="0.081" radius-tubular="0.004" color="#1a1a1a"></a-torus>
             <a-torus radius="0.081" radius-tubular="0.004" color="#1a1a1a" rotation="0 90 0"></a-torus>
             <a-torus radius="0.081" radius-tubular="0.004" color="#1a1a1a" rotation="90 0 0"></a-torus>
@@ -362,7 +405,7 @@
         </a-entity>
 
         <!-- ============ MINIJUEGO: FÚTBOL ============ -->
-        <a-entity id="soccerGame" visible="false">
+        <a-entity id="soccerGame" position="0 0 -0.35" visible="false">
           <!-- Cancha -->
           <a-plane width="1.6" height="2.0" rotation="-90 0 0" position="0 0 -0.2" color="#2E7D32"></a-plane>
           <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 -0.45" color="#388E3C"></a-plane>
@@ -411,7 +454,7 @@
 
           <!-- Balón -->
           <a-entity id="sball" position="0 0.06 0.6">
-            <a-sphere radius="0.06" color="#FFFFFF"></a-sphere>
+            <a-sphere id="sballSkin" radius="0.06" color="#FFFFFF"></a-sphere>
             <a-entity geometry="primitive: icosahedron; radius: 0.061; detail: 1" material="color: #111; wireframe: true"></a-entity>
             <!-- Zona de toque grande -->
             <a-sphere id="sballHit" radius="0.16" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
@@ -423,12 +466,35 @@
   </a-scene>
 
   <script>
-    /* =========================================================
-       CONFIGURACIÓN DEL MARCADOR (imagen que ve el usuario)
-       ========================================================= */
-    const MARKER_IMG = 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png';
-
     const THREE = AFRAME.THREE;
+
+    // Texto 3D dibujado en un canvas (no necesita fuentes externas)
+    AFRAME.registerComponent('canvas-text', {
+      schema: { text: { default: '' }, color: { default: '#fff' }, width: { default: 1.2 } },
+      init: function () {
+        const px = 96, pad = 24;
+        const c = document.createElement('canvas');
+        const ctx = c.getContext('2d');
+        const font = '900 ' + px + 'px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        ctx.font = font;
+        const tw = Math.ceil(ctx.measureText(this.data.text).width);
+        c.width = tw + pad * 2; c.height = 128;
+        ctx.font = font;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.strokeText(this.data.text, c.width / 2, c.height / 2);
+        ctx.fillStyle = this.data.color;
+        ctx.fillText(this.data.text, c.width / 2, c.height / 2);
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        const h = 0.075 * (this.data.width / 1.2);
+        const geo = new THREE.PlaneGeometry(h * c.width / c.height, h);
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+        this.mesh = new THREE.Mesh(geo, mat);
+        this.el.setObject3D('mesh', this.mesh);
+      },
+      remove: function () { this.el.removeObject3D('mesh'); }
+    });
     const $ = (id) => document.getElementById(id);
 
     /* =========================================================
@@ -436,10 +502,10 @@
        ========================================================= */
     const G = {
       mode: 'start',          // start | chest | menu | basket | soccer
-      tracking: false,        // ¿el marcador está visible?
+      gyro: false,            // ¿el celular tiene giroscopio?
       score: 0,
       record: 0,
-      orient: 'mesa'
+      started: false
     };
 
     // ---------- Baloncesto ----------
@@ -479,7 +545,13 @@
     /* =========================================================
        UTILIDADES DE INTERFAZ
        ========================================================= */
-    const STATUS = {
+    const STATUS_GYRO = {
+      chest:  '🎯 Apunta el círculo amarillo al cofre y toca la pantalla',
+      menu:   '🎯 Apunta a un portal (Baloncesto o Fútbol) y toca',
+      basket: '🏀 Desliza hacia arriba o pulsa LANZAR',
+      soccer: '🎯 Apunta al balón y toca para patear'
+    };
+    const STATUS_TOUCH = {
       chest:  '👆 Toca el cofre para abrirlo',
       menu:   '✨ Toca un portal: Baloncesto o Fútbol',
       basket: '🏀 Desliza hacia arriba o pulsa LANZAR',
@@ -489,9 +561,8 @@
     function setStatus(txt) { $('status').textContent = txt; }
 
     function refreshStatus() {
-      if (G.mode === 'start') return;
-      if (!G.tracking) setStatus('🔍 Apunta la cámara al marcador');
-      else setStatus(STATUS[G.mode] || '');
+      if (!G.started) return;
+      setStatus((G.gyro ? STATUS_GYRO : STATUS_TOUCH)[G.mode] || '');
     }
 
     let toastTimer = null;
@@ -518,11 +589,19 @@
       if (navigator.vibrate) navigator.vibrate(60);
     }
 
+    function registrarInteraccion(accion, detalle) {
+      try {
+        const lista = JSON.parse(localStorage.getItem('arCofreInteracciones') || '[]');
+        lista.push({ accion: accion, detalle: detalle, puntos: G.score, fecha: new Date().toISOString() });
+        localStorage.setItem('arCofreInteracciones', JSON.stringify(lista.slice(-100)));
+      } catch (e) {}
+    }
+
     function setClickable(el, on) {
       if (on) el.classList.add('clickable'); else el.classList.remove('clickable');
     }
     function refreshRaycaster() {
-      const rc = $('cam').components.raycaster;
+      const rc = $('cursor-raycast').components.raycaster;
       if (rc) rc.refreshObjects();
     }
     function show(el, on) { el.setAttribute('visible', on); }
@@ -556,6 +635,7 @@
 
       refreshRaycaster();
       toast('✨ ¡Abierto!');
+      registrarInteraccion('Abrir cofre', 'menu');
     }
 
     function burstSparkles() {
@@ -593,6 +673,8 @@
       refreshRaycaster();
       refreshStatus();
       toast('🏀 ¡A encestar!');
+      registrarInteraccion('Entrar a minijuego', 'Baloncesto');
+      setTimeout(recenter, 50);
     }
 
     function startSoccer() {
@@ -607,6 +689,8 @@
       refreshRaycaster();
       refreshStatus();
       toast('⚽ ¡A meter gol!');
+      registrarInteraccion('Entrar a minijuego', 'Fútbol');
+      setTimeout(recenter, 50);
     }
 
     function backToMenu() {
@@ -639,7 +723,7 @@
 
     // p = potencia (1 = perfecta), lat = desvío lateral
     function shootBasket(p, lat) {
-      if (G.mode !== 'basket' || B.state !== 'ready' || !G.tracking) return;
+      if (G.mode !== 'basket' || B.state !== 'ready') return;
       const d = new THREE.Vector3().subVectors(B.HOOP, B.START);
       const T = B.T;
       B.vel.set(d.x / T + lat, (d.y + 0.5 * B.GRAV * T * T) / T, d.z / T).multiplyScalar(p);
@@ -691,6 +775,7 @@
         B.resetAt = B.t + 1.2;
         addPoints(10);
         toast('🏀 ¡CANASTA! +10');
+        registrarInteraccion('Canasta', 'Baloncesto');
         $('hoopFlash').emit('flash');
       }
 
@@ -739,7 +824,7 @@
     }
 
     function kick() {
-      if (G.mode !== 'soccer' || S.state !== 'ready' || !G.tracking) return;
+      if (G.mode !== 'soccer' || S.state !== 'ready') return;
       const a = S.aim;
       S.vel.set(-Math.sin(a) * S.SPEED, S.VY, -Math.cos(a) * S.SPEED);
       S.state = 'flying';
@@ -763,10 +848,12 @@
         $('sGoals').textContent = S.goals;
         addPoints(10);
         toast('⚽ ¡GOOOL! +10');
+        registrarInteraccion('Gol', 'Fútbol');
         $('goalFlash').emit('flash');
         S.keeperSpeed = Math.min(S.keeperSpeed + 0.3, 4.2);   // dificultad progresiva
       } else if (res === 'save') {
         toast('🧤 ¡ATAJADA!');
+        registrarInteraccion('Atajada', 'Fútbol');
       } else if (res === 'out') {
         toast('❌ ¡Afuera!');
       }
@@ -876,65 +963,124 @@
        ========================================================= */
     AFRAME.registerComponent('game-manager', {
       tick: function (time, delta) {
-        if (!G.tracking) return;                       // pausa si se pierde el marcador
         const dt = Math.min((delta || 16) / 1000, 0.05); // evita saltos grandes
         if (G.mode === 'basket') updateBasket(dt);
         else if (G.mode === 'soccer') updateSoccer(dt);
       }
     });
 
+
+    /* =========================================================
+       CÁMARA DEL CELULAR DE FONDO (sin marcador)
+       ========================================================= */
+    async function startCameraFeed() {
+      const video = $('camfeed');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }, audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        document.body.classList.add('cam-on');
+        return true;
+      } catch (e) {
+        document.body.classList.remove('cam-on');
+        return false;
+      }
+    }
+
+    /* =========================================================
+       GIROSCOPIO: apuntar moviendo el celular (o tocar, si no hay)
+       ========================================================= */
+    async function enableGyro() {
+      // iPhone pide permiso para leer el movimiento del celular
+      try {
+        if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const r = await DeviceOrientationEvent.requestPermission();
+          if (r !== 'granted') return false;
+        }
+      } catch (e) { return false; }
+      return new Promise((resolve) => {
+        let done = false;
+        const onOri = (e) => {
+          if (done || e.alpha === null || e.alpha === undefined) return;
+          done = true; window.removeEventListener('deviceorientation', onOri); resolve(true);
+        };
+        window.addEventListener('deviceorientation', onOri);
+        setTimeout(() => { if (!done) { done = true; window.removeEventListener('deviceorientation', onOri); resolve(false); } }, 1500);
+      });
+    }
+
+    function setAimMode(gyro) {
+      G.gyro = gyro;
+      const cur = $('cursor-raycast');
+      if (gyro) {
+        // a-cursor en el centro: se apunta moviendo el celular y se toca la pantalla
+        cur.setAttribute('cursor', 'rayOrigin: entity; fuse: false');
+        cur.setAttribute('visible', true);
+      } else {
+        // sin giroscopio (PC / artefacto): el rayo sale desde donde se toca o hace clic
+        cur.setAttribute('cursor', 'rayOrigin: mouse; fuse: false');
+        cur.setAttribute('visible', false);
+      }
+      refreshRaycaster();
+      refreshStatus();
+    }
+
+    // Pone el juego justo delante de hacia donde mira el celular
+    function recenter() {
+      const cam = $('cam').object3D;
+      const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
+      $('anchor').object3D.rotation.y = e.y;
+    }
+
+    /* =========================================================
+       PANEL DE CONTROLES 2D (modifica la escena en tiempo real)
+       ========================================================= */
+    const PREFS = { size: 2, dist: 3, color: '#FF7A00' };
+
+    function applyPrefs() {
+      const w = $('world');
+      w.object3D.scale.set(PREFS.size, PREFS.size, PREFS.size);
+      w.object3D.position.set(0, 0.3, -PREFS.dist);
+      $('bballSkin').setAttribute('color', PREFS.color);
+      $('sballSkin').setAttribute('color', PREFS.color === '#FF7A00' ? '#FFFFFF' : PREFS.color);
+      $('sizeVal').textContent = PREFS.size.toFixed(1) + 'x';
+      $('distVal').textContent = PREFS.dist.toFixed(1) + ' m';
+      $('sizeRange').value = PREFS.size;
+      $('distRange').value = PREFS.dist;
+      document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === PREFS.color));
+      try { localStorage.setItem('arCofrePrefs', JSON.stringify(PREFS)); } catch (e) {}
+    }
+
     /* =========================================================
        EVENTOS
        ========================================================= */
-    function setOrientation(o) {
-      G.orient = o;
-      $('world').setAttribute('rotation', o === 'mesa' ? '90 0 0' : '0 0 0');
-      document.querySelectorAll('[data-orient]').forEach(b =>
-        b.classList.toggle('active', b.dataset.orient === o));
-    }
-
     window.addEventListener('DOMContentLoaded', () => {
       const scene = $('scene');
 
-      // Marcador e historial
-      $('markerImg').src = MARKER_IMG;
-      $('markerLink').href = MARKER_IMG;
+      // Récord y preferencias guardadas
       try { G.record = parseInt(localStorage.getItem('arCofreRecord') || '0', 10) || 0; } catch (e) {}
+      try { Object.assign(PREFS, JSON.parse(localStorage.getItem('arCofrePrefs') || '{}')); } catch (e) {}
       $('record').textContent = G.record;
+      const ready = () => applyPrefs();
+      if (scene.hasLoaded) ready(); else scene.addEventListener('loaded', ready, { once: true });
 
-      // Orientación
-      document.querySelectorAll('[data-orient]').forEach(b =>
-        b.addEventListener('click', () => setOrientation(b.dataset.orient)));
-      $('btnOrient').addEventListener('click', () => {
-        setOrientation(G.orient === 'mesa' ? 'pared' : 'mesa');
-        toast(G.orient === 'mesa' ? '🟫 Modo mesa' : '🖥️ Modo pared');
-      });
-
-      // Iniciar cámara
-      $('btnStart').addEventListener('click', () => {
+      // JUGAR: cámara de fondo + giroscopio
+      $('btnStart').addEventListener('click', async () => {
         $('start').classList.add('hidden');
-        setStatus('📷 Iniciando cámara…');
-        const go = () => {
-          const sys = scene.systems['mindar-image-system'];
-          if (sys) sys.start();
-        };
-        if (scene.hasLoaded) go(); else scene.addEventListener('loaded', go, { once: true });
-      });
-
-      scene.addEventListener('arReady', () => {
+        setStatus('📷 Abriendo cámara…');
+        const gyroPromise = enableGyro();          // se pide dentro del toque (iPhone lo exige)
+        const camOk = await startCameraFeed();
+        const gyro = await gyroPromise;
+        G.started = true;
         G.mode = 'chest';
-        refreshStatus();
-      });
-      scene.addEventListener('arError', () => {
-        setStatus('⚠️ No se pudo abrir la cámara. Revisa los permisos y que la página esté en HTTPS.');
+        setAimMode(gyro);
+        setTimeout(recenter, 300);
+        if (!camOk) toast('📷 Sin cámara: modo pantalla');
       });
 
-      // Marcador encontrado / perdido
-      const target = $('target');
-      target.addEventListener('targetFound', () => { G.tracking = true; refreshStatus(); });
-      target.addEventListener('targetLost', () => { G.tracking = false; refreshStatus(); });
-
-      // Toques sobre objetos 3D (cursor + raycaster)
+      // Toques sobre objetos 3D (a-cursor + raycaster)
       $('chestHit').addEventListener('click', openChest);
       document.querySelectorAll('.portal-hit').forEach(el =>
         el.addEventListener('click', () => {
@@ -943,7 +1089,26 @@
       $('sballHit').addEventListener('click', kick);
 
       // Botones HTML
-      $('btnMenu').addEventListener('click', backToMenu);
+      $('btnMenu').addEventListener('click', () => { backToMenu(); setTimeout(recenter, 50); });
+      $('btnCenter').addEventListener('click', () => { recenter(); toast('🎯 Centrado'); });
+      $('btnPanel').addEventListener('click', () => $('panel').classList.toggle('hidden'));
+      $('btnClosePanel').addEventListener('click', () => $('panel').classList.add('hidden'));
+      $('sizeRange').addEventListener('input', (e) => { PREFS.size = parseFloat(e.target.value); applyPrefs(); });
+      $('distRange').addEventListener('input', (e) => { PREFS.dist = parseFloat(e.target.value); applyPrefs(); });
+      document.querySelectorAll('.swatch').forEach(s =>
+        s.addEventListener('click', () => { PREFS.color = s.dataset.color; applyPrefs(); registrarInteraccion('Cambiar color', PREFS.color); }));
+      $('btnReset').addEventListener('click', () => {
+        try {
+          localStorage.removeItem('arCofreRecord');
+          localStorage.removeItem('arCofreInteracciones');
+        } catch (e) {}
+        G.record = 0; G.score = 0;
+        $('record').textContent = 0; $('score').textContent = 0;
+        B.shots = B.hits = S.shots = S.goals = 0;
+        ['bShots', 'bHits', 'sShots', 'sGoals'].forEach(id => $(id).textContent = 0);
+        toast('🧹 Estadísticas borradas');
+      });
+
       $('btnShoot').addEventListener('click', () => {
         const p = 0.75 + B.meter * 0.5;   // zona verde (≈0.5) = tiro perfecto
         shootBasket(p, 0);
