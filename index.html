@@ -238,7 +238,7 @@
     </div>
     <div class="hud-right">
       <button id="btnSound" class="ui-btn ui" title="Sonido">🔊</button>
-      <button id="btnCenter" class="ui-btn ui" title="Centrar">🎯</button>
+      <button id="btnCenter" class="ui-btn ui wide" title="Centrar">🎯 Centrar</button>
       <button id="btnPanel" class="ui-btn ui" title="Panel de controles">🎨</button>
       <button id="btnMenu" class="ui-btn ui hidden" title="Volver a los portales">🏠</button>
     </div>
@@ -348,6 +348,7 @@
         <a-entity id="chest" position="0 0.3 0"
           animation__float="property: position; from: 0 0.28 0; to: 0 0.38 0; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine">
 
+          <a-entity id="chestFocus" position="0 0.2 0"></a-entity>
           <a-entity id="chestBody"
             animation__wobble="property: rotation; from: 0 -14 0; to: 0 14 0; dir: alternate; loop: true; dur: 1700; easing: easeInOutSine">
 
@@ -463,6 +464,7 @@
 
         <!-- ============ MINIJUEGO: BALONCESTO ============ -->
         <a-entity id="basketGame" position="0 0.1 -0.4" visible="false">
+          <a-entity id="basketFocus" position="0 0.6 0"></a-entity>
           <!-- Piso virtual -->
           <a-circle radius="0.8" rotation="-90 0 0" position="0 0.001 -0.1" material="shader: flat; color: #3D5AFE; opacity: 0.35; transparent: true; depthWrite: false"></a-circle>
           <a-ring radius-inner="0.78" radius-outer="0.81" rotation="-90 0 0" position="0 0.002 -0.1" material="shader: flat; color: #00E5FF; opacity: 0.9; transparent: true"></a-ring>
@@ -506,6 +508,7 @@
 
         <!-- ============ MINIJUEGO: FÚTBOL ============ -->
         <a-entity id="soccerGame" position="0 0.2 -0.2" visible="false">
+          <a-entity id="soccerFocus" position="0 0.12 -0.25"></a-entity>
           <!-- Cancha -->
           <a-plane width="1.6" height="2.0" rotation="-90 0 0" position="0 0 -0.2" color="#2E7D32"></a-plane>
           <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 -0.45" color="#388E3C"></a-plane>
@@ -1293,10 +1296,33 @@
     }
 
     // Pone el juego justo delante de hacia donde mira el celular
+    // Centrar: gira el juego hacia donde mira el celular (izq/der)
+    // y lo sube o baja para que quede a la altura de la mirada.
+    let yOffset = 0;
+    function focusEl() {
+      if (G.mode === 'basket') return $('basketFocus');
+      if (G.mode === 'soccer') return $('soccerFocus');
+      return $('chestFocus');
+    }
     function recenter() {
       const cam = $('cam').object3D;
+      const anchor = $('anchor').object3D;
       const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
-      $('anchor').object3D.rotation.y = e.y;
+      anchor.rotation.set(0, e.y, 0);
+      anchor.updateMatrixWorld(true);
+      const f = focusEl();
+      if (!f) return;
+      const v = new THREE.Vector3();
+      f.object3D.getWorldPosition(v);
+      anchor.worldToLocal(v);                       // posición del juego respecto al anchor
+      const camY = cam.position.y;                  // altura de los ojos (1.6 m)
+      const dist = Math.max(0.5, -v.z);
+      const wantY = camY + dist * Math.tan(e.x);    // altura a la que mira el celular
+      yOffset = Math.max(-3, Math.min(3, yOffset + (wantY - v.y)));
+      placeWorld();
+    }
+    function placeWorld() {
+      $('world').object3D.position.set(0, 0.45 + yOffset, -PREFS.dist);
     }
 
     /* =========================================================
@@ -1307,7 +1333,7 @@
     function applyPrefs() {
       const w = $('world');
       w.object3D.scale.set(PREFS.size, PREFS.size, PREFS.size);
-      w.object3D.position.set(0, 0.45, -PREFS.dist);
+      placeWorld();
       $('bballSkin').setAttribute('color', PREFS.color);
       $('sballSkin').setAttribute('color', PREFS.color === '#FF7A00' ? '#FFFFFF' : PREFS.color);
       $('sizeVal').textContent = PREFS.size.toFixed(1) + 'x';
@@ -1345,6 +1371,7 @@
         setAimMode(gyro);
         setTimeout(recenter, 300);
         if (!camOk) toast('📷 Sin cámara: modo pantalla');
+        else if (gyro) setTimeout(() => setStatus('💡 Si el juego se mueve o se pierde, pulsa 🎯 Centrar'), 4000);
       });
 
       // Toques sobre objetos 3D (a-cursor + raycaster)
