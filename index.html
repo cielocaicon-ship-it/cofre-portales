@@ -99,7 +99,7 @@
     /* ---------- CONTROLES ---------- */
     .controls { position: fixed; z-index: 20; pointer-events: none; display: flex; flex-direction: column; gap: 8px; }
     #basketControls { right: var(--sr); bottom: var(--sb); align-items: flex-end; width: min(46vw, 300px); }
-    #soccerControls { left: 50%; transform: translateX(-50%); bottom: var(--sb); align-items: center; }
+    #soccerControls { left: var(--sl); top: calc(var(--st) + 50px); align-items: flex-start; max-width: min(42vw, 260px); }
     .card {
       padding: 10px 14px; border-radius: 16px; background: var(--glass);
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -219,7 +219,7 @@
     #rivalPill { border-color: var(--cian); color: #fff; }
     #duelPill { border-color: var(--rosa); }
     #netPill { font-size: 12px; padding: 6px 10px; }
-    #pingControls { left: 50%; transform: translateX(-50%); top: calc(var(--st) + 50px); align-items: center; }
+    #pingControls { left: var(--sl); top: calc(var(--st) + 50px); align-items: flex-start; max-width: min(42vw, 260px); }
     #pingControls .card { padding: 6px 14px; }
     @media (orientation: landscape) {
       #start .big { font-size: clamp(14px, 4.2vmin, 20px); padding: 10px 22px; }
@@ -288,8 +288,8 @@
   <!-- ================= PANEL DE CONTROLES 2D ================= -->
   <div id="panel" class="ui hidden">
     <h3>🎨 Controles <button id="btnClosePanel" class="ui-btn">✕</button></h3>
-    <label>Tamaño <span id="sizeVal">2.0x</span></label>
-    <input id="sizeRange" type="range" min="1.4" max="2.6" step="0.1" value="2" />
+    <label>Tamaño en pantalla <span id="sizeVal">100%</span></label>
+    <input id="sizeRange" type="range" min="0.7" max="1.4" step="0.05" value="1" />
     <label>Distancia <span id="distVal">3.0 m</span></label>
     <input id="distRange" type="range" min="2" max="4" step="0.1" value="3" />
     <label>Color del balón</label>
@@ -369,8 +369,8 @@
 
         <!-- Sol con sombras reales -->
         <a-entity id="lightTarget" position="0 0 -0.2"></a-entity>
-        <a-entity position="0.9 2.6 1.4"
-          light="type: directional; color: #fff4e0; intensity: 1.15; castShadow: true; shadowMapWidth: 1024; shadowMapHeight: 1024; shadowCameraLeft: -3.5; shadowCameraRight: 3.5; shadowCameraTop: 3.5; shadowCameraBottom: -3.5; shadowCameraNear: 0.1; shadowCameraFar: 16; shadowBias: -0.0006; target: #lightTarget"></a-entity>
+        <a-entity id="sun" position="0.9 2.6 1.4"
+          light="type: directional; color: #fff4e0; intensity: 1.15; castShadow: true; shadowMapWidth: 2048; shadowMapHeight: 2048; shadowCameraLeft: -3.5; shadowCameraRight: 3.5; shadowCameraTop: 3.5; shadowCameraBottom: -3.5; shadowCameraNear: 0.1; shadowCameraFar: 16; shadowBias: -0.0006; target: #lightTarget"></a-entity>
 
         <!-- ============ MENÚ: COFRE + PORTALES ============ -->
         <a-entity id="menuGroup">
@@ -1857,7 +1857,7 @@
       refreshStatus();
     }
     function fitFov() {
-      $('cam').setAttribute('camera', 'fov', window.innerWidth > window.innerHeight ? 60 : 75);
+      $('cam').setAttribute('camera', 'fov', window.innerWidth > window.innerHeight ? 55 : 72);
     }
     function goLandscape() {
       try {
@@ -1870,50 +1870,100 @@
       } catch (e) {}
     }
 
-    // Centrar: pone el juego delante de hacia donde mira el celular y
-    // siempre visto un poco desde arriba (como si grabaras la cancha).
-    let yOffset = 0;
+    // Centrar: pone el juego delante de hacia donde mira el celular,
+    // visto un poco desde arriba (como si grabaras la cancha) y
+    // lo AGRANDA automáticamente hasta llenar la pantalla.
+    let yOffset = 0, worldScale = 2;
     function focusEl() {
       if (G.mode === 'basket') return $('basketFocus');
       if (G.mode === 'soccer') return $('soccerFocus');
       if (G.mode === 'ping') return $('pingFocus');
       return $('chestFocus');
     }
-    function recenter() {
-      const cam = $('cam').object3D, anchor = $('anchor').object3D;
-      const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
-      const minPitch = GAMES[G.mode] ? -0.5 : -0.3;      // ángulo mínimo "desde arriba"
-      const theta = Math.min(e.x, minPitch);
-      anchor.rotation.order = 'YXZ';
-      anchor.rotation.set(0, e.y, 0);
-      anchor.updateMatrixWorld(true);
+    // Puntos de cada juego que SIEMPRE deben verse (coordenadas dentro de #world)
+    const FIT_PTS = {
+      menu:   [[-0.76, 0.74, 0.05], [0.76, 0.74, 0.05], [0, 1.06, -0.12], [-0.76, 0.25, 0.05], [0.76, 0.25, 0.05], [0, 0, 0.5], [0, 0, -0.5]],
+      basket: [[-0.6, 1.4, -1.18], [0.6, 1.4, -1.18], [0, 0.04, 0.3], [-0.22, 0.04, 0.3], [0.22, 0.04, 0.3]],
+      soccer: [[-0.5, 0.42, -1.1], [0.5, 0.42, -1.1], [0, 0, 0.46], [-0.32, 0, 0.42], [0.32, 0, 0.42]],
+      ping:   [[-0.4, 0.38, -0.785], [0.4, 0.38, -0.785], [0, 0.56, -0.88], [-0.4, 0.38, 0.585], [0.4, 0.38, 0.585], [0, 0.34, 0.68], [-0.12, 0.56, 0.68], [0.12, 0.56, 0.68]]
+    };
+    function placeWorld() {
+      const w = $('world').object3D;
+      w.scale.setScalar(worldScale);
+      w.position.set(0, -1.15 + yOffset, -PREFS.dist);
+    }
+    function aimAtFocus(theta) {
+      const anchor = $('anchor').object3D;
       const v = new THREE.Vector3();
       focusEl().object3D.getWorldPosition(v);
       anchor.worldToLocal(v);
       const dist = Math.max(0.5, -v.z);
-      const wantY = dist * Math.tan(theta);
-      yOffset = clamp(yOffset + (wantY - v.y), -4, 4);
+      yOffset = clamp(yOffset + (dist * Math.tan(theta) - v.y), -8, 8);
       placeWorld();
-      // Gira todo alrededor de los ojos para que quede en el centro de la pantalla
-      anchor.rotation.set(e.x - theta, e.y, 0);
     }
-    function placeWorld() {
-      $('world').object3D.position.set(0, -1.15 + yOffset, -PREFS.dist);
+    // Mide dónde cae el juego en pantalla (coordenadas -1..1)
+    const TOP = 0.74, BOTTOM = -0.9, SIDE = 0.94;     // espacio útil (arriba está el HUD)
+    function measure() {
+      const cam = $('scene').camera, w = $('world').object3D;
+      if (!cam) return null;
+      w.updateMatrixWorld(true); cam.updateMatrixWorld(true);
+      let x = 0, y0 = 1e9, y1 = -1e9;
+      const v = new THREE.Vector3(), c = new THREE.Vector3();
+      for (const p of FIT_PTS[GAMES[G.mode] ? G.mode : 'menu']) {
+        v.set(p[0], p[1], p[2]); w.localToWorld(v);
+        c.copy(v).applyMatrix4(cam.matrixWorldInverse);
+        if (c.z > -0.2) return { spread: 9, shift: 0 };          // demasiado cerca: achicar
+        v.project(cam);
+        x = Math.max(x, Math.abs(v.x)); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+      }
+      const spread = Math.max(x / SIDE, ((y1 - y0) / 2) / ((TOP - BOTTOM) / 2));
+      const shift = (TOP + BOTTOM) / 2 - (y0 + y1) / 2;          // cuánto subir/bajar para centrar
+      const halfFov = THREE.MathUtils.degToRad(cam.fov / 2);
+      return { spread: spread, shift: Math.atan(shift * Math.tan(halfFov)) };
+    }
+    function screenSpread() { const m = measure(); return m ? m.spread : 1; }
+    function recenter() {
+      const cam = $('cam').object3D, anchor = $('anchor').object3D;
+      const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
+      const theta = Math.min(e.x, GAMES[G.mode] ? -0.5 : -0.3);   // ángulo mínimo "desde arriba"
+      anchor.rotation.order = 'YXZ';
+      let extra = 0;
+      const settle = () => {
+        anchor.rotation.set(0, e.y, 0); anchor.updateMatrixWorld(true);
+        aimAtFocus(theta);
+        // Gira todo alrededor de los ojos para que quede en el centro de la pantalla
+        anchor.rotation.set(e.x - theta + extra, e.y, 0); anchor.updateMatrixWorld(true);
+      };
+      for (let i = 0; i < 8; i++) {
+        settle();
+        const m = measure();
+        if (!m) break;
+        const k = clamp((0.97 * PREFS.zoom) / m.spread, 0.5, 1.8);
+        extra = clamp(extra + m.shift, -0.6, 0.6);
+        if (Math.abs(k - 1) < 0.015 && Math.abs(m.shift) < 0.005) break;
+        worldScale = clamp(worldScale * k, 0.8, 5);
+      }
+      settle();
+      // Las sombras cubren todo el juego aunque sea grande
+      const sun = $('sun').getObject3D('light');
+      if (sun && sun.shadow) {
+        const b = 1.8 * worldScale, sc = sun.shadow.camera;
+        sc.left = -b; sc.right = b; sc.top = b; sc.bottom = -b; sc.far = 8 * worldScale;
+        sc.updateProjectionMatrix();
+      }
     }
 
-    const PREFS = { size: 2, dist: 3, color: '#D4651F' };
+    const PREFS = { zoom: 1, dist: 3, color: '#D4651F' };
     function applyPrefs() {
-      const w = $('world');
-      w.object3D.scale.set(PREFS.size, PREFS.size, PREFS.size);
-      placeWorld();
       $('bballSkin').setAttribute('ptex', 'color', PREFS.color);
       $('sballSkin').setAttribute('ptex', 'color', PREFS.color === '#D4651F' ? '' : PREFS.color);
-      $('sizeVal').textContent = PREFS.size.toFixed(1) + 'x';
+      $('sizeVal').textContent = Math.round(PREFS.zoom * 100) + '%';
       $('distVal').textContent = PREFS.dist.toFixed(1) + ' m';
-      $('sizeRange').value = PREFS.size;
+      $('sizeRange').value = PREFS.zoom;
       $('distRange').value = PREFS.dist;
       document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === PREFS.color));
       try { localStorage.setItem('arCofrePrefs', JSON.stringify(PREFS)); } catch (e) {}
+      if (G.started) recenter(); else placeWorld();
     }
 
     /* =========================================================
@@ -1936,7 +1986,7 @@
       const scene = $('scene');
 
       try { G.record = parseInt(localStorage.getItem('arCofreRecord') || '0', 10) || 0; } catch (e) {}
-      try { const p = JSON.parse(localStorage.getItem('arCofrePrefs') || '{}'); if (p.color && !/^#/.test(p.color)) delete p.color; Object.assign(PREFS, p); } catch (e) {}
+      try { const p = JSON.parse(localStorage.getItem('arCofrePrefs') || '{}'); if (p.color && !/^#/.test(p.color)) delete p.color; delete p.size; if (!(p.zoom >= 0.7 && p.zoom <= 1.4)) delete p.zoom; Object.assign(PREFS, p); } catch (e) {}
       try { $('playerName').value = localStorage.getItem('arCofreNombre') || ''; } catch (e) {}
       $('record').textContent = G.record;
       const ready = () => { applyPrefs(); fitFov(); makeHoloParticles(); };
@@ -1986,7 +2036,7 @@
       });
       $('btnPanel').addEventListener('click', () => $('panel').classList.toggle('hidden'));
       $('btnClosePanel').addEventListener('click', () => $('panel').classList.add('hidden'));
-      $('sizeRange').addEventListener('input', (e) => { PREFS.size = parseFloat(e.target.value); applyPrefs(); });
+      $('sizeRange').addEventListener('input', (e) => { PREFS.zoom = parseFloat(e.target.value); applyPrefs(); });
       $('distRange').addEventListener('input', (e) => { PREFS.dist = parseFloat(e.target.value); applyPrefs(); });
       document.querySelectorAll('.swatch').forEach(s =>
         s.addEventListener('click', () => { PREFS.color = s.dataset.color; applyPrefs(); registrarInteraccion('Cambiar color', PREFS.color); }));
@@ -2026,7 +2076,7 @@
         if (e.key === 'ArrowRight') P.pxTarget = clamp(P.pxTarget + 0.08, -0.46, 0.46);
       });
 
-      window.addEventListener('resize', fitFov);
+      window.addEventListener('resize', () => { fitFov(); if (G.started) setTimeout(recenter, 100); });
       window.addEventListener('orientationchange', () => setTimeout(() => { fitFov(); recenter(); }, 500));
     });
   </script>
