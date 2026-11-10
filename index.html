@@ -4,30 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#1a0b3d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>AR Arcade · El Cofre de los Portales</title>
 
   <!--
     ============================================================
     AR ARCADE · EL COFRE DE LOS PORTALES  (versión SIN marcador)
-    A-Frame 1.5.0 — basado en la Clase 13 (Realidad Aumentada en la Web)
+    A-Frame 1.5.0 + PeerJS — basado en la Clase 13 (Realidad Aumentada en la Web)
     ------------------------------------------------------------
-    - La cámara trasera del celular se muestra de fondo y la escena
-      3D aparece delante (entre -2 m y -4 m, zona ergonómica).
+    - La cámara trasera del celular se ve de fondo; la escena 3D aparece
+      delante (entre -2 m y -4 m) con sombras reales sobre tu piso.
+    - 3 minijuegos: Baloncesto, Ping-Pong y Fútbol.
     - Se apunta moviendo el celular (giroscopio) con el <a-cursor>
-      amarillo y se toca la pantalla para "hacer clic" (raycaster).
-    - Sin giroscopio (PC) se toca o hace clic directo en los objetos.
-    - Panel 2D 🎨: tamaño, distancia y color del balón en tiempo real.
-    - LocalStorage: récord, preferencias e historial de interacciones
-      (DevTools > Application > Local Storage).
-    - Diseñado para jugar en HORIZONTAL (pide girar el celular).
-    - Efectos: sonidos generados (Web Audio), confeti, monedas, racha 🔥
-      y aro que se mueve a partir de la 3ª canasta.
+      amarillo y se toca la pantalla (raycaster). En PC: clic directo.
+    - Multijugador online (PeerJS, sin servidor propio):
+        · Partida rápida: te empareja con otra persona que esté buscando.
+        · Sala con código de 4 letras para jugar con un amigo.
+        · Baloncesto/Fútbol: duelo de 60 s. Ping-Pong: 1 contra 1 real.
+    - Texturas generadas por código (madera, parqué, pasto, balones).
+    - Panel 2D 🎨 y LocalStorage (récord, preferencias, historial).
     - Debe abrirse desde HTTPS (GitHub Pages / Vercel) para la cámara.
     ============================================================
   -->
 
   <!-- A-Frame (trae cursor, raycaster y animation de forma nativa) -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
+  <!-- PeerJS: conexión directa entre dos celulares para el modo online -->
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
   <style>
     :root {
@@ -196,13 +200,39 @@
     @media (orientation: portrait) {
       #basketControls { right: 50%; transform: translateX(50%); align-items: center; width: min(90vw, 360px); }
     }
+
+    /* ---------- INICIO: nombre, modos y sala ---------- */
+    #start .col { gap: 10px; }
+    #start .big { width: 100%; max-width: 320px; }
+    .big.alt { background: linear-gradient(135deg, #00B8D4, #6A24C4); box-shadow: 0 6px 26px rgba(0,229,255,.45); animation: none; }
+    .name-input, #roomCode {
+      pointer-events: auto; padding: 10px 16px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.12); color: #fff; font-size: 16px; font-weight: 700; text-align: center; outline: none;
+      width: 100%; max-width: 320px; font-family: inherit;
+    }
+    .name-input::placeholder, #roomCode::placeholder { color: rgba(255,255,255,.55); }
+    #roomCode { width: 130px; text-transform: uppercase; letter-spacing: 4px; }
+    .linkbtn { background: none; border: none; color: var(--cian); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 14px; font-family: inherit; }
+    .room-box { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    .join-row { display: flex; gap: 8px; }
+    .tip { margin: 0; opacity: .85; font-size: 13px; }
+    #rivalPill { border-color: var(--cian); color: #fff; }
+    #duelPill { border-color: var(--rosa); }
+    #netPill { font-size: 12px; padding: 6px 10px; }
+    #pingControls { left: 50%; transform: translateX(-50%); top: calc(var(--st) + 50px); align-items: center; }
+    #pingControls .card { padding: 6px 14px; }
+    @media (orientation: landscape) {
+      #start .big { font-size: clamp(14px, 4.2vmin, 20px); padding: 10px 22px; }
+      .name-input { padding: 8px 14px; }
+      #start .chips .chip { font-size: 12px; padding: 5px 10px; }
+      .hud-left .pill { padding: 5px 10px; font-size: clamp(12px, 3.6vmin, 17px); }
+    }
   </style>
 </head>
 <body>
 
   <!-- Video de la cámara del celular (fondo de realidad aumentada) -->
   <video id="camfeed" autoplay playsinline muted></video>
-
   <div id="vignette"></div>
 
   <!-- ================= AVISO: GIRA EL CELULAR ================= -->
@@ -217,15 +247,21 @@
     <div class="col">
       <div class="logo">🗝️</div>
       <h1>El Cofre de<br>los Portales</h1>
-      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">⚽ Fútbol</span><span class="chip">📷 Realidad aumentada</span></div>
+      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">🏓 Ping-Pong</span><span class="chip">⚽ Fútbol</span></div>
+      <p class="tip">📷 Realidad aumentada sin marcador · 🌐 Solo u online</p>
     </div>
     <div class="col">
-      <ul>
-        <li>📷 El cofre aparece frente a ti sobre lo que ve tu cámara (sin marcador).</li>
-        <li>📱 Mueve el celular y apunta con el <b style="color:var(--oro)">círculo amarillo</b>; toca la pantalla para elegir.</li>
-        <li>🎯 Si te pierdes, pulsa <b>Centrar</b>. 🎨 cambia tamaño, distancia y color.</li>
-      </ul>
-      <button id="btnStart" class="big">▶ JUGAR</button>
+      <input id="playerName" class="name-input" maxlength="12" placeholder="Tu nombre" autocomplete="off" />
+      <button id="btnSolo" class="big">🎮 JUGAR SOLO</button>
+      <button id="btnQuick" class="big alt">🌐 MULTIJUGADOR ONLINE</button>
+      <button id="btnRoomToggle" class="linkbtn">🔑 Jugar con un amigo (código de sala)</button>
+      <div id="roomBox" class="room-box hidden">
+        <button id="btnCreateRoom" class="ui-btn wide">➕ Crear sala</button>
+        <div class="join-row">
+          <input id="roomCode" maxlength="4" placeholder="CÓDIGO" autocomplete="off" />
+          <button id="btnJoinRoom" class="ui-btn wide">Unirme</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -235,8 +271,11 @@
       <span id="scorePill" class="pill">⭐ <span id="score">0</span></span>
       <span id="recordPill" class="pill">🏆 <span id="record">0</span></span>
       <span id="streakPill" class="pill hidden">🔥 x<span id="streak">0</span></span>
+      <span id="rivalPill" class="pill hidden">👤 <span id="rivalName">Rival</span>: <span id="rivalScore">0</span></span>
+      <span id="duelPill" class="pill hidden">⏱ <span id="duelTime">60</span></span>
     </div>
     <div class="hud-right">
+      <span id="netPill" class="pill hidden"></span>
       <button id="btnSound" class="ui-btn ui" title="Sonido">🔊</button>
       <button id="btnCenter" class="ui-btn ui wide" title="Centrar">🎯 Centrar</button>
       <button id="btnPanel" class="ui-btn ui" title="Panel de controles">🎨</button>
@@ -255,11 +294,11 @@
     <input id="distRange" type="range" min="2" max="4" step="0.1" value="3" />
     <label>Color del balón</label>
     <div class="swatches">
-      <button class="swatch" data-color="#FF7A00" style="background:#FF7A00" title="Naranja"></button>
+      <button class="swatch" data-color="#D4651F" style="background:#D4651F" title="Original"></button>
       <button class="swatch" data-color="#FF2E88" style="background:#FF2E88" title="Rosa"></button>
-      <button class="swatch" data-color="#00E5FF" style="background:#00E5FF" title="Cian"></button>
-      <button class="swatch" data-color="#00E676" style="background:#00E676" title="Verde"></button>
-      <button class="swatch" data-color="#FFD54F" style="background:#FFD54F" title="Dorado"></button>
+      <button class="swatch" data-color="#00B8D4" style="background:#00B8D4" title="Cian"></button>
+      <button class="swatch" data-color="#2E7D32" style="background:#2E7D32" title="Verde"></button>
+      <button class="swatch" data-color="#F9A825" style="background:#F9A825" title="Dorado"></button>
     </div>
     <button id="btnReset" class="ui-btn wide">🧹 Borrar récord y estadísticas</button>
     <p class="small">Se guarda en LocalStorage del navegador.</p>
@@ -283,10 +322,20 @@
     </div>
   </div>
 
+  <!-- Controles ping-pong (abajo al centro) -->
+  <div id="pingControls" class="controls hidden">
+    <div class="card">
+      <div class="stats">🏓 Tú <span id="pMe">0</span> – <span id="pRival">0</span> <span id="pRivalName">Máquina</span></div>
+      <p class="hint">Desliza el dedo a los lados · gana quien llegue a 7</p>
+    </div>
+  </div>
+
   <!-- ================= ESCENA A-FRAME ================= -->
   <a-scene
     id="scene"
-    renderer="colorManagement: true; antialias: true; alpha: true"
+    renderer="colorManagement: true; antialias: true; alpha: true; toneMapping: ACESFilmic; exposure: 1.05"
+    shadow="type: pcfsoft"
+    env-light
     vr-mode-ui="enabled: false"
     xr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
@@ -294,16 +343,11 @@
     game-manager>
 
     <!-- Cámara a altura humana (1.6 m). Gira con el giroscopio del celular -->
-    <a-camera
-      id="cam"
-      position="0 1.6 0"
+    <a-camera id="cam" position="0 1.6 0"
       look-controls="magicWindowTrackingEnabled: true; touchEnabled: false; mouseEnabled: false"
       wasd-controls="enabled: false">
       <!-- Cursor espacial (raycaster) hijo de la cámara -->
-      <a-cursor
-        id="cursor-raycast"
-        color="#FFCC00"
-        fuse="false"
+      <a-cursor id="cursor-raycast" color="#FFCC00" fuse="false"
         raycaster="objects: .clickable; far: 30"
         geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.019"
         material="shader: flat; color: #FFCC00; opacity: 0.95"
@@ -315,258 +359,312 @@
       </a-cursor>
     </a-camera>
 
-    <!-- Luces -->
-    <a-entity light="type: ambient; color: #ffffff; intensity: 0.8"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 0.9" position="0.6 3 1"></a-entity>
-    <a-entity light="type: directional; color: #b388ff; intensity: 0.4" position="-1 1 0.5"></a-entity>
+    <!-- Luz ambiental tipo cielo/suelo (más natural que una luz plana) -->
+    <a-entity light="type: hemisphere; color: #ffffff; groundColor: #7a6450; intensity: 0.85"></a-entity>
 
-    <!-- anchor: gira para "centrar" el juego frente al celular -->
-    <a-entity id="anchor">
-      <!-- world: escena del juego a 3 m delante (Z entre -2 y -4) -->
-      <a-entity id="world" position="0 0.45 -3" scale="2 2 2">
+    <!-- anchor: está en los ojos; gira para "centrar" el juego -->
+    <a-entity id="anchor" position="0 1.6 0">
+      <!-- world: escena del juego delante (Z entre -2 y -4) -->
+      <a-entity id="world" position="0 -1.15 -3" scale="2 2 2">
 
-        <!-- ============ PLATAFORMA HOLOGRÁFICA (menú) ============ -->
-        <a-entity id="menuBase">
-          <a-circle radius="0.55" rotation="-90 0 0" position="0 0 0" material="shader: flat; color: #00E5FF; opacity: 0.16; transparent: true; depthWrite: false"></a-circle>
-          <a-entity rotation="-90 0 0" animation="property: rotation; from: -90 0 0; to: -90 0 360; loop: true; dur: 8000; easing: linear">
-            <a-ring radius-inner="0.52" radius-outer="0.56" theta-length="300" material="shader: flat; color: #00E5FF; opacity: 0.9; transparent: true"></a-ring>
-            <a-ring radius-inner="0.44" radius-outer="0.455" theta-length="120" material="shader: flat; color: #FFFFFF; opacity: 0.7; transparent: true"></a-ring>
+        <!-- Sol con sombras reales -->
+        <a-entity id="lightTarget" position="0 0 -0.2"></a-entity>
+        <a-entity position="0.9 2.6 1.4"
+          light="type: directional; color: #fff4e0; intensity: 1.15; castShadow: true; shadowMapWidth: 1024; shadowMapHeight: 1024; shadowCameraLeft: -3.5; shadowCameraRight: 3.5; shadowCameraTop: 3.5; shadowCameraBottom: -3.5; shadowCameraNear: 0.1; shadowCameraFar: 16; shadowBias: -0.0006; target: #lightTarget"></a-entity>
+
+        <!-- ============ MENÚ: COFRE + PORTALES ============ -->
+        <a-entity id="menuGroup">
+          <!-- Atrapa-sombras: proyecta la sombra del cofre sobre el piso real -->
+          <a-entity shadow-catcher="opacity: 0.45" scale="3 3 3"></a-entity>
+          <!-- Anillo sutil en el piso -->
+          <a-entity rotation="-90 0 0" position="0 0.002 0" animation="property: rotation; from: -90 0 0; to: -90 0 360; loop: true; dur: 9000; easing: linear">
+            <a-ring radius-inner="0.5" radius-outer="0.515" theta-length="300" material="shader: flat; color: #00E5FF; opacity: 0.7; transparent: true"></a-ring>
           </a-entity>
-          <a-entity rotation="-90 0 0" animation="property: rotation; from: -90 0 360; to: -90 0 0; loop: true; dur: 5000; easing: linear">
-            <a-ring radius-inner="0.38" radius-outer="0.4" theta-length="200" material="shader: flat; color: #FF2E88; opacity: 0.9; transparent: true"></a-ring>
-          </a-entity>
-          <a-cylinder radius="0.5" height="0.9" position="0 0.45 0" open-ended="true"
-            material="shader: flat; color: #00E5FF; opacity: 0.045; transparent: true; side: double; depthWrite: false"></a-cylinder>
-          <!-- partículas que suben -->
           <a-entity id="holoParticles"></a-entity>
-          <!-- sombra suave bajo el cofre -->
-          <a-circle radius="0.22" rotation="-90 0 0" position="0 0.004 0" material="shader: flat; color: #000; opacity: 0.35; transparent: true; depthWrite: false"
-            animation="property: scale; from: 1 1 1; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine"></a-circle>
+
+          <!-- Cofre -->
+          <a-entity id="chest" position="0 0.03 0"
+            animation__float="property: position; from: 0 0.02 0; to: 0 0.07 0; dir: alternate; loop: true; dur: 1500; easing: easeInOutSine">
+            <a-entity id="chestFocus" position="0 0.2 0"></a-entity>
+            <a-entity id="chestBody" shadow="cast: true; receive: false"
+              animation__wobble="property: rotation; from: 0 -12 0; to: 0 12 0; dir: alternate; loop: true; dur: 1800; easing: easeInOutSine">
+              <!-- Caja de madera -->
+              <a-box width="0.5" height="0.26" depth="0.34" position="0 0.13 0" color="#ffffff" material="roughness: 0.85; metalness: 0" ptex="type: wood; repeat: 1 0.6"></a-box>
+              <!-- Interior dorado (se ve al abrir) -->
+              <a-box width="0.46" height="0.02" depth="0.3" position="0 0.255 0" color="#FFD54F" material="emissive: #FFB300; emissiveIntensity: 1.2"></a-box>
+              <!-- Herrajes metálicos -->
+              <a-box width="0.515" height="0.03" depth="0.355" position="0 0.015 0" color="#C9A227" material="metalness: 1; roughness: 0.28"></a-box>
+              <a-box width="0.515" height="0.03" depth="0.355" position="0 0.245 0" color="#C9A227" material="metalness: 1; roughness: 0.28"></a-box>
+              <a-box width="0.035" height="0.265" depth="0.355" position="-0.16 0.13 0" color="#3A3A3A" material="metalness: 0.9; roughness: 0.4"></a-box>
+              <a-box width="0.035" height="0.265" depth="0.355" position="0.16 0.13 0" color="#3A3A3A" material="metalness: 0.9; roughness: 0.4"></a-box>
+              <!-- Esquineras -->
+              <a-box width="0.04" height="0.27" depth="0.04" position="-0.25 0.13 0.17" color="#C9A227" material="metalness: 1; roughness: 0.3"></a-box>
+              <a-box width="0.04" height="0.27" depth="0.04" position="0.25 0.13 0.17" color="#C9A227" material="metalness: 1; roughness: 0.3"></a-box>
+              <a-box width="0.04" height="0.27" depth="0.04" position="-0.25 0.13 -0.17" color="#C9A227" material="metalness: 1; roughness: 0.3"></a-box>
+              <a-box width="0.04" height="0.27" depth="0.04" position="0.25 0.13 -0.17" color="#C9A227" material="metalness: 1; roughness: 0.3"></a-box>
+              <!-- Cerradura -->
+              <a-box width="0.075" height="0.095" depth="0.025" position="0 0.2 0.18" color="#E6B422" material="metalness: 1; roughness: 0.22"></a-box>
+              <a-cylinder radius="0.012" height="0.01" rotation="90 0 0" position="0 0.205 0.194" color="#1a1a1a"></a-cylinder>
+
+              <!-- Tapa curva: pivote en el borde trasero (bisagra) -->
+              <a-entity id="lid" position="0 0.26 -0.17"
+                animation__open="property: rotation; from: 0 0 0; to: -115 0 0; dur: 900; easing: easeOutBack; startEvents: open">
+                <a-cylinder radius="0.17" height="0.5" theta-start="0" theta-length="180" rotation="0 0 90" position="0 0 0.17"
+                  color="#ffffff" material="roughness: 0.85; side: double" ptex="type: wood; repeat: 1 0.5"></a-cylinder>
+                <a-torus radius="0.172" radius-tubular="0.012" arc="180" rotation="0 90 0" position="-0.16 0 0.17" color="#3A3A3A" material="metalness: 0.9; roughness: 0.4"></a-torus>
+                <a-torus radius="0.172" radius-tubular="0.012" arc="180" rotation="0 90 0" position="0.16 0 0.17" color="#3A3A3A" material="metalness: 0.9; roughness: 0.4"></a-torus>
+                <a-torus radius="0.172" radius-tubular="0.01" arc="180" rotation="0 90 0" position="-0.245 0 0.17" color="#C9A227" material="metalness: 1; roughness: 0.28"></a-torus>
+                <a-torus radius="0.172" radius-tubular="0.01" arc="180" rotation="0 90 0" position="0.245 0 0.17" color="#C9A227" material="metalness: 1; roughness: 0.28"></a-torus>
+              </a-entity>
+
+              <!-- Luz dorada interior -->
+              <a-entity id="chestLight" position="0 0.4 0"
+                light="type: point; color: #FFD54F; intensity: 0; distance: 2"
+                animation__on="property: light.intensity; from: 0; to: 2.2; dur: 900; startEvents: open"></a-entity>
+            </a-entity>
+
+            <!-- Zona de toque cómoda -->
+            <a-box id="chestHit" class="clickable" width="0.75" height="0.6" depth="0.6" position="0 0.22 0"
+              material="opacity: 0; transparent: true; depthWrite: false"></a-box>
+
+            <a-entity id="chestLabel" position="0 0.6 0">
+              <a-plane width="0.62" height="0.12" color="#000" material="shader: flat; opacity: 0.55; transparent: true; side: double"></a-plane>
+              <a-entity canvas-text="text: ¡TOCA EL COFRE!; color: #FFD54F; width: 1.4" position="0 0 0.002"></a-entity>
+            </a-entity>
+
+            <!-- Gemas que orbitan el cofre -->
+            <a-entity id="gems" position="0 0.15 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000; easing: linear">
+              <a-octahedron radius="0.028" position="0.42 0 0" color="#FF2E88" material="metalness: 0.3; roughness: 0.1; emissive: #FF2E88; emissiveIntensity: 0.4"></a-octahedron>
+              <a-octahedron radius="0.028" position="0.21 0.06 0.36" color="#00E5FF" material="metalness: 0.3; roughness: 0.1; emissive: #00E5FF; emissiveIntensity: 0.4"></a-octahedron>
+              <a-octahedron radius="0.028" position="-0.21 0 0.36" color="#00E676" material="metalness: 0.3; roughness: 0.1; emissive: #00E676; emissiveIntensity: 0.4"></a-octahedron>
+              <a-octahedron radius="0.028" position="-0.42 0.06 0" color="#FFD54F" material="metalness: 0.3; roughness: 0.1; emissive: #FFD54F; emissiveIntensity: 0.4"></a-octahedron>
+              <a-octahedron radius="0.028" position="-0.21 0 -0.36" color="#B388FF" material="metalness: 0.3; roughness: 0.1; emissive: #B388FF; emissiveIntensity: 0.4"></a-octahedron>
+              <a-octahedron radius="0.028" position="0.21 0.06 -0.36" color="#FF7A00" material="metalness: 0.3; roughness: 0.1; emissive: #FF7A00; emissiveIntensity: 0.4"></a-octahedron>
+            </a-entity>
+
+            <a-entity id="sparkles" position="0 0.3 0"></a-entity>
+          </a-entity>
+
+          <!-- Portales (aparecen al abrir el cofre) -->
+          <a-entity id="portals" visible="false">
+            <!-- Baloncesto -->
+            <a-entity id="portalBasket" position="-0.55 0.55 0.05" scale="0.001 0.001 0.001"
+              animation__show="property: scale; to: 1 1 1; dur: 700; easing: easeOutElastic; startEvents: show">
+              <a-entity animation__bob="property: position; from: 0 -0.03 0; to: 0 0.03 0; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine">
+                <a-sphere radius="0.12" color="#ffffff" material="roughness: 0.75" ptex="type: basketball"
+                  animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"></a-sphere>
+                <a-torus radius="0.19" radius-tubular="0.012" color="#FF7A00" material="metalness: 0.6; roughness: 0.3; emissive: #FF5500; emissiveIntensity: 0.6"
+                  animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 2500; easing: linear"></a-torus>
+                <a-sphere radius="0.17" material="shader: flat; color: #FF7A00; opacity: 0.16; transparent: true; depthWrite: false"
+                  animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
+                <a-entity position="0 -0.27 0">
+                  <a-plane width="0.5" height="0.09" color="#FF7A00" material="shader: flat; opacity: 0.85; transparent: true; side: double"></a-plane>
+                  <a-entity canvas-text="text: BALONCESTO; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
+                </a-entity>
+                <a-sphere class="portal-hit" data-game="basket" radius="0.25" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
+              </a-entity>
+            </a-entity>
+
+            <!-- Ping-Pong -->
+            <a-entity id="portalPing" position="0 0.82 -0.12" scale="0.001 0.001 0.001"
+              animation__show="property: scale; to: 1 1 1; dur: 700; delay: 100; easing: easeOutElastic; startEvents: show">
+              <a-entity animation__bob="property: position; from: 0 0.03 0; to: 0 -0.03 0; dir: alternate; loop: true; dur: 1300; easing: easeInOutSine">
+                <a-entity rotation="0 0 -25" animation="property: rotation; from: 0 0 -25; to: 0 360 -25; loop: true; dur: 4500; easing: linear">
+                  <a-cylinder radius="0.085" height="0.014" rotation="90 0 0" color="#ffffff" material="roughness: 0.6" ptex="type: rubber; color: #C62828"></a-cylinder>
+                  <a-box width="0.03" height="0.1" depth="0.02" position="0 -0.12 0" color="#B9835A" material="roughness: 0.7"></a-box>
+                  <a-sphere radius="0.022" position="0.09 0.09 0.03" color="#FFFFFF" material="roughness: 0.4"></a-sphere>
+                </a-entity>
+                <a-torus radius="0.19" radius-tubular="0.012" color="#00E5FF" material="metalness: 0.6; roughness: 0.3; emissive: #00B8D4; emissiveIntensity: 0.7"
+                  animation="property: rotation; from: 0 0 360; to: 0 0 0; loop: true; dur: 2500; easing: linear"></a-torus>
+                <a-sphere radius="0.17" material="shader: flat; color: #00E5FF; opacity: 0.16; transparent: true; depthWrite: false"
+                  animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
+                <a-entity position="0 -0.27 0">
+                  <a-plane width="0.46" height="0.09" color="#00B8D4" material="shader: flat; opacity: 0.85; transparent: true; side: double"></a-plane>
+                  <a-entity canvas-text="text: PING-PONG; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
+                </a-entity>
+                <a-sphere class="portal-hit" data-game="ping" radius="0.25" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
+              </a-entity>
+            </a-entity>
+
+            <!-- Fútbol -->
+            <a-entity id="portalSoccer" position="0.55 0.55 0.05" scale="0.001 0.001 0.001"
+              animation__show="property: scale; to: 1 1 1; dur: 700; delay: 200; easing: easeOutElastic; startEvents: show">
+              <a-entity animation__bob="property: position; from: 0 0.03 0; to: 0 -0.03 0; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine">
+                <a-sphere radius="0.12" color="#ffffff" material="roughness: 0.55" ptex="type: soccer"
+                  animation="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear"></a-sphere>
+                <a-torus radius="0.19" radius-tubular="0.012" color="#00E676" material="metalness: 0.6; roughness: 0.3; emissive: #00C853; emissiveIntensity: 0.6"
+                  animation="property: rotation; from: 0 0 360; to: 0 0 0; loop: true; dur: 2500; easing: linear"></a-torus>
+                <a-sphere radius="0.17" material="shader: flat; color: #00E676; opacity: 0.16; transparent: true; depthWrite: false"
+                  animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
+                <a-entity position="0 -0.27 0">
+                  <a-plane width="0.42" height="0.09" color="#00C853" material="shader: flat; opacity: 0.85; transparent: true; side: double"></a-plane>
+                  <a-entity canvas-text="text: FUTBOL; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
+                </a-entity>
+                <a-sphere class="portal-hit" data-game="soccer" radius="0.25" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
+              </a-entity>
+            </a-entity>
+          </a-entity>
         </a-entity>
 
-        <!-- ============ FASE 1: COFRE ============ -->
-        <a-entity id="chest" position="0 0.3 0"
-          animation__float="property: position; from: 0 0.28 0; to: 0 0.38 0; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine">
+        <!-- ============ MINIJUEGO: BALONCESTO (media cancha real) ============ -->
+        <a-entity id="basketGame" position="0 0 -0.4" visible="false">
+          <a-entity id="basketFocus" position="0 0.5 0"></a-entity>
+          <!-- Piso de madera (parqué) -->
+          <a-plane width="1.7" height="1.95" rotation="-90 0 0" position="0 0 -0.05" color="#ffffff"
+            material="roughness: 0.45; metalness: 0" ptex="type: parquet; repeat: 1 1" shadow="cast: false; receive: true"></a-plane>
+          <!-- Zona pintada (la "llave") -->
+          <a-plane width="0.38" height="0.5" rotation="-90 0 0" position="0 0.002 -0.6" color="#B03A2E" material="roughness: 0.5; opacity: 0.9; transparent: true" shadow="receive: true"></a-plane>
+          <!-- Líneas blancas -->
+          <a-box width="1.7" height="0.003" depth="0.012" position="0 0.003 -0.85" color="#FFFFFF" material="roughness: 0.6"></a-box>
+          <a-box width="0.012" height="0.003" depth="1.95" position="-0.84 0.003 -0.05" color="#FFFFFF"></a-box>
+          <a-box width="0.012" height="0.003" depth="1.95" position="0.84 0.003 -0.05" color="#FFFFFF"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.5" position="-0.19 0.003 -0.6" color="#FFFFFF"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.5" position="0.19 0.003 -0.6" color="#FFFFFF"></a-box>
+          <a-box width="0.39" height="0.003" depth="0.012" position="0 0.003 -0.35" color="#FFFFFF"></a-box>
+          <a-ring radius-inner="0.172" radius-outer="0.184" rotation="-90 0 0" position="0 0.003 -0.35" color="#FFFFFF" material="shader: flat"></a-ring>
+          <a-ring radius-inner="0.72" radius-outer="0.732" theta-start="180" theta-length="180" rotation="-90 0 0" position="0 0.003 -0.5" color="#FFFFFF" material="shader: flat"></a-ring>
+          <a-box width="0.012" height="0.003" depth="0.35" position="-0.726 0.003 -0.675" color="#FFFFFF"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.35" position="0.726 0.003 -0.675" color="#FFFFFF"></a-box>
+          <!-- Marca de tiro -->
+          <a-ring radius-inner="0.1" radius-outer="0.13" rotation="-90 0 0" position="0 0.004 0.7" material="shader: flat; color: #FF2E88; opacity: 0.8; transparent: true"
+            animation="property: scale; from: 1 1 1; to: 1.25 1.25 1.25; dir: alternate; loop: true; dur: 700"></a-ring>
 
-          <a-entity id="chestFocus" position="0 0.2 0"></a-entity>
-          <a-entity id="chestBody"
-            animation__wobble="property: rotation; from: 0 -14 0; to: 0 14 0; dir: alternate; loop: true; dur: 1700; easing: easeInOutSine">
-
-            <!-- Base de madera -->
-            <a-box width="0.5" height="0.26" depth="0.34" position="0 0.13 0" color="#8B4513" material="roughness: 0.8"></a-box>
-            <!-- Brillo interior (se ve al abrir) -->
-            <a-box width="0.46" height="0.02" depth="0.3" position="0 0.255 0" color="#FFD54F" material="emissive: #FFC107; emissiveIntensity: 1"></a-box>
-            <!-- Bandas doradas -->
-            <a-box width="0.52" height="0.035" depth="0.36" position="0 0.02 0" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-            <a-box width="0.52" height="0.035" depth="0.36" position="0 0.245 0" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-            <a-box width="0.04" height="0.27" depth="0.36" position="-0.16 0.13 0" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-            <a-box width="0.04" height="0.27" depth="0.36" position="0.16 0.13 0" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-            <!-- Cerradura -->
-            <a-box width="0.08" height="0.1" depth="0.03" position="0 0.2 0.18" color="#FFC107" material="metalness: 0.8; roughness: 0.2"></a-box>
-            <a-sphere radius="0.015" position="0 0.2 0.198" color="#3E2723"></a-sphere>
-
-            <!-- Tapa: pivote en el borde trasero para que gire como bisagra -->
-            <a-entity id="lid" position="0 0.26 -0.17"
-              animation__open="property: rotation; from: 0 0 0; to: -115 0 0; dur: 900; easing: easeOutBack; startEvents: open">
-              <a-box width="0.5" height="0.1" depth="0.34" position="0 0.05 0.17" color="#A0522D" material="roughness: 0.8"></a-box>
-              <a-box width="0.52" height="0.03" depth="0.36" position="0 0.1 0.17" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-              <a-box width="0.04" height="0.105" depth="0.36" position="-0.16 0.05 0.17" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-              <a-box width="0.04" height="0.105" depth="0.36" position="0.16 0.05 0.17" color="#FFD700" material="metalness: 0.7; roughness: 0.3"></a-box>
-            </a-entity>
-
-            <!-- Luz dorada interior -->
-            <a-entity id="chestLight" position="0 0.4 0"
-              light="type: point; color: #FFD54F; intensity: 0; distance: 2"
-              animation__on="property: light.intensity; from: 0; to: 2.2; dur: 900; startEvents: open"></a-entity>
-          </a-entity>
-
-          <!-- Caja invisible más grande = zona de toque cómoda -->
-          <a-box id="chestHit" class="clickable" width="0.75" height="0.6" depth="0.6" position="0 0.22 0"
-            material="opacity: 0; transparent: true; depthWrite: false"></a-box>
-
-          <!-- Etiqueta -->
-          <a-entity id="chestLabel" position="0 0.62 0">
-            <a-plane width="0.62" height="0.12" color="#000" material="opacity: 0.55; transparent: true; side: double"></a-plane>
-            <a-entity canvas-text="text: ¡TOCA EL COFRE!; color: #FFD54F; width: 1.4" position="0 0 0.002"></a-entity>
-          </a-entity>
-
-          <!-- Gemas que orbitan el cofre -->
-          <a-entity id="gems" position="0 0.15 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 7000; easing: linear">
-            <a-octahedron radius="0.03" position="0.42 0 0" color="#FF2E88" material="emissive: #FF2E88; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
-            <a-octahedron radius="0.03" position="0.21 0.06 0.36" color="#00E5FF" material="emissive: #00E5FF; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
-            <a-octahedron radius="0.03" position="-0.21 0 0.36" color="#00E676" material="emissive: #00E676; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
-            <a-octahedron radius="0.03" position="-0.42 0.06 0" color="#FFD54F" material="emissive: #FFD54F; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
-            <a-octahedron radius="0.03" position="-0.21 0 -0.36" color="#B388FF" material="emissive: #B388FF; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
-            <a-octahedron radius="0.03" position="0.21 0.06 -0.36" color="#FF7A00" material="emissive: #FF7A00; emissiveIntensity: 0.7" animation="property: rotation; to: 0 360 0; loop: true; dur: 1500; easing: linear"></a-octahedron>
-          </a-entity>
-
-          <!-- Contenedor de chispas (se llenan por JS) -->
-          <a-entity id="sparkles" position="0 0.3 0"></a-entity>
-        </a-entity>
-
-        <!-- ============ FASE 2: PORTALES ============ -->
-        <a-entity id="portals" position="0 0.3 0" visible="false">
-
-          <!-- Portal Baloncesto -->
-          <a-entity id="portalBasket" position="-0.38 0.55 0.05" scale="0.001 0.001 0.001"
-            animation__show="property: scale; to: 1 1 1; dur: 700; easing: easeOutElastic; startEvents: show"
-            animation__bob="property: position; from: -0.38 0.52 0.05; to: -0.38 0.6 0.05; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine">
-            <a-sphere radius="0.13" color="#FF7A00" material="emissive: #FF5500; emissiveIntensity: 0.35"
-              animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-              <a-torus radius="0.131" radius-tubular="0.006" color="#1a1a1a"></a-torus>
-              <a-torus radius="0.131" radius-tubular="0.006" color="#1a1a1a" rotation="0 90 0"></a-torus>
-              <a-torus radius="0.131" radius-tubular="0.006" color="#1a1a1a" rotation="90 0 0"></a-torus>
-            </a-sphere>
-            <a-torus radius="0.19" radius-tubular="0.014" color="#FFD700" material="emissive: #FFC400; emissiveIntensity: 0.8"
-              animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 2500; easing: linear"></a-torus>
-            <a-entity position="0 -0.27 0">
-              <a-plane width="0.5" height="0.09" color="#FF7A00" material="opacity: 0.85; transparent: true; side: double"></a-plane>
-              <a-entity canvas-text="text: BALONCESTO; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
-            </a-entity>
-            <a-sphere radius="0.17" material="shader: flat; color: #FF7A00; opacity: 0.2; transparent: true; depthWrite: false"
-              animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
-            <a-entity animation="property: rotation; from: 0 0 0; to: 0 360 360; loop: true; dur: 3000; easing: linear">
-              <a-sphere radius="0.012" position="0.24 0 0" material="shader: flat; color: #FFFFFF"></a-sphere>
-              <a-sphere radius="0.012" position="-0.24 0 0" material="shader: flat; color: #FF7A00"></a-sphere>
-              <a-sphere radius="0.012" position="0 0.24 0" material="shader: flat; color: #FFFFFF"></a-sphere>
-              <a-sphere radius="0.012" position="0 -0.24 0" material="shader: flat; color: #FF7A00"></a-sphere>
-            </a-entity>
-            <a-sphere class="clickable portal-hit" data-game="basket" radius="0.25"
-              material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
-          </a-entity>
-
-          <!-- Portal Fútbol -->
-          <a-entity id="portalSoccer" position="0.38 0.55 0.05" scale="0.001 0.001 0.001"
-            animation__show="property: scale; to: 1 1 1; dur: 700; delay: 150; easing: easeOutElastic; startEvents: show"
-            animation__bob="property: position; from: 0.38 0.6 0.05; to: 0.38 0.52 0.05; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine">
-            <a-entity animation="property: rotation; to: 360 360 0; loop: true; dur: 5000; easing: linear">
-              <a-sphere radius="0.13" color="#FFFFFF" material="emissive: #ffffff; emissiveIntensity: 0.15"></a-sphere>
-              <a-entity geometry="primitive: icosahedron; radius: 0.132; detail: 1" material="color: #111; wireframe: true"></a-entity>
-            </a-entity>
-            <a-torus radius="0.19" radius-tubular="0.014" color="#00E676" material="emissive: #00C853; emissiveIntensity: 0.8"
-              animation="property: rotation; from: 0 0 360; to: 0 0 0; loop: true; dur: 2500; easing: linear"></a-torus>
-            <a-entity position="0 -0.27 0">
-              <a-plane width="0.42" height="0.09" color="#00C853" material="opacity: 0.85; transparent: true; side: double"></a-plane>
-              <a-entity canvas-text="text: FUTBOL; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
-            </a-entity>
-            <a-sphere radius="0.17" material="shader: flat; color: #00E676; opacity: 0.2; transparent: true; depthWrite: false"
-              animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
-            <a-entity animation="property: rotation; from: 0 0 0; to: 0 360 360; loop: true; dur: 3000; easing: linear">
-              <a-sphere radius="0.012" position="0.24 0 0" material="shader: flat; color: #FFFFFF"></a-sphere>
-              <a-sphere radius="0.012" position="-0.24 0 0" material="shader: flat; color: #00E676"></a-sphere>
-              <a-sphere radius="0.012" position="0 0.24 0" material="shader: flat; color: #FFFFFF"></a-sphere>
-              <a-sphere radius="0.012" position="0 -0.24 0" material="shader: flat; color: #00E676"></a-sphere>
-            </a-entity>
-            <a-sphere class="clickable portal-hit" data-game="soccer" radius="0.25"
-              material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
-          </a-entity>
-        </a-entity>
-
-        <!-- ============ MINIJUEGO: BALONCESTO ============ -->
-        <a-entity id="basketGame" position="0 0.1 -0.4" visible="false">
-          <a-entity id="basketFocus" position="0 0.6 0"></a-entity>
-          <!-- Piso virtual -->
-          <a-circle radius="0.8" rotation="-90 0 0" position="0 0.001 -0.1" material="shader: flat; color: #3D5AFE; opacity: 0.35; transparent: true; depthWrite: false"></a-circle>
-          <a-ring radius-inner="0.78" radius-outer="0.81" rotation="-90 0 0" position="0 0.002 -0.1" material="shader: flat; color: #00E5FF; opacity: 0.9; transparent: true"></a-ring>
-          <a-ring radius-inner="0.3" radius-outer="0.32" rotation="-90 0 0" position="0 0.003 0.55" material="shader: flat; color: #FFFFFF"></a-ring>
-          <a-ring radius-inner="0.12" radius-outer="0.2" rotation="-90 0 0" position="0 0.004 0.7" material="shader: flat; color: #FF2E88; opacity: 0.8; transparent: true"
-            animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 700"></a-ring>
           <!-- Todo el aro (poste, tablero, red) se mueve junto -->
-          <a-entity id="hoopRig">
-          <!-- Poste -->
-          <a-cylinder radius="0.025" height="1.18" position="0 0.59 -0.86" color="#90A4AE" material="metalness: 0.6"></a-cylinder>
-          <!-- Tablero -->
-          <a-box width="0.7" height="0.45" depth="0.03" position="0 1.15 -0.78" color="#FFFFFF" material="opacity: 0.92; transparent: true"></a-box>
-          <a-box width="0.28" height="0.2" depth="0.005" position="0 1.08 -0.762" color="#FF1744"></a-box>
-          <a-box width="0.24" height="0.16" depth="0.006" position="0 1.08 -0.761" color="#FFFFFF"></a-box>
-          <a-entity canvas-text="text: AR BASKET; color: #1A237E; width: 1.2" position="0 1.32 -0.762"></a-entity>
-          <!-- Soporte del aro -->
-          <a-box width="0.04" height="0.02" depth="0.05" position="0 1.0 -0.74" color="#FF3D00"></a-box>
-          <!-- Aro (horizontal) -->
-          <a-torus id="hoop" radius="0.2" radius-tubular="0.012" position="0 1.0 -0.5" rotation="90 0 0"
-            color="#FF3D00" material="emissive: #DD2C00; emissiveIntensity: 0.4"></a-torus>
-          <!-- Red -->
-          <a-entity geometry="primitive: cone; radiusTop: 0.2; radiusBottom: 0.12; height: 0.24; openEnded: true; segmentsRadial: 14; segmentsHeight: 4"
-            material="color: #FFFFFF; wireframe: true" position="0 0.88 -0.5"></a-entity>
-          <!-- Efecto de anotación -->
-          <a-torus id="hoopFlash" radius="0.2" radius-tubular="0.02" position="0 1.0 -0.5" rotation="90 0 0"
-            color="#FFEA00" material="emissive: #FFEA00; emissiveIntensity: 1; opacity: 0; transparent: true"
-            animation__s="property: scale; from: 1 1 1; to: 2.4 2.4 2.4; dur: 700; easing: easeOutQuad; startEvents: flash"
-            animation__o="property: material.opacity; from: 1; to: 0; dur: 700; easing: easeOutQuad; startEvents: flash"></a-torus>
-          <!-- Luz del tablero -->
-          <a-box width="0.72" height="0.02" depth="0.035" position="0 1.38 -0.78" material="shader: flat; color: #00E5FF"></a-box>
-          <a-box width="0.72" height="0.02" depth="0.035" position="0 0.92 -0.78" material="shader: flat; color: #FF2E88"></a-box>
+          <a-entity id="hoopRig" shadow="cast: true; receive: false">
+            <!-- Base acolchada y poste -->
+            <a-box width="0.22" height="0.12" depth="0.22" position="0 0.06 -1.0" color="#1A237E" material="roughness: 0.8"></a-box>
+            <a-cylinder radius="0.03" height="1.12" position="0 0.62 -1.0" color="#222222" material="metalness: 0.8; roughness: 0.35"></a-cylinder>
+            <a-box width="0.05" height="0.05" depth="0.2" position="0 1.15 -0.89" color="#222222" material="metalness: 0.8; roughness: 0.35"></a-box>
+            <!-- Tablero de vidrio -->
+            <a-box width="0.7" height="0.45" depth="0.015" position="0 1.15 -0.78" color="#E8F4FF"
+              material="opacity: 0.32; transparent: true; roughness: 0.05; metalness: 0.1"></a-box>
+            <a-box width="0.72" height="0.018" depth="0.02" position="0 1.375 -0.78" color="#111111" material="metalness: 0.7; roughness: 0.4"></a-box>
+            <a-box width="0.72" height="0.018" depth="0.02" position="0 0.925 -0.78" color="#111111" material="metalness: 0.7; roughness: 0.4"></a-box>
+            <a-box width="0.018" height="0.46" depth="0.02" position="-0.355 1.15 -0.78" color="#111111" material="metalness: 0.7; roughness: 0.4"></a-box>
+            <a-box width="0.018" height="0.46" depth="0.02" position="0.355 1.15 -0.78" color="#111111" material="metalness: 0.7; roughness: 0.4"></a-box>
+            <!-- Recuadro blanco del tablero -->
+            <a-box width="0.26" height="0.01" depth="0.004" position="0 1.17 -0.771" color="#FFFFFF" material="shader: flat"></a-box>
+            <a-box width="0.26" height="0.01" depth="0.004" position="0 1.03 -0.771" color="#FFFFFF" material="shader: flat"></a-box>
+            <a-box width="0.01" height="0.15" depth="0.004" position="-0.125 1.1 -0.771" color="#FFFFFF" material="shader: flat"></a-box>
+            <a-box width="0.01" height="0.15" depth="0.004" position="0.125 1.1 -0.771" color="#FFFFFF" material="shader: flat"></a-box>
+            <!-- Soporte y aro metálico -->
+            <a-box width="0.05" height="0.015" depth="0.06" position="0 1.0 -0.74" color="#E64A19" material="metalness: 0.7; roughness: 0.3"></a-box>
+            <a-torus id="hoop" radius="0.2" radius-tubular="0.011" position="0 1.0 -0.5" rotation="90 0 0"
+              color="#E64A19" material="metalness: 0.7; roughness: 0.3"></a-torus>
+            <!-- Red -->
+            <a-entity geometry="primitive: cone; radiusTop: 0.2; radiusBottom: 0.12; height: 0.24; openEnded: true; segmentsRadial: 16; segmentsHeight: 5"
+              material="color: #FFFFFF; wireframe: true; opacity: 0.9; transparent: true" position="0 0.88 -0.5"></a-entity>
+            <!-- Efecto de anotación -->
+            <a-torus id="hoopFlash" radius="0.2" radius-tubular="0.02" position="0 1.0 -0.5" rotation="90 0 0"
+              material="shader: flat; color: #FFEA00; opacity: 0; transparent: true"
+              animation__s="property: scale; from: 1 1 1; to: 2.4 2.4 2.4; dur: 700; easing: easeOutQuad; startEvents: flash"
+              animation__o="property: material.opacity; from: 1; to: 0; dur: 700; easing: easeOutQuad; startEvents: flash"></a-torus>
           </a-entity>
+
           <!-- Balón -->
           <a-entity id="bball" position="0 0.2 0.7">
-            <a-sphere id="bballSkin" radius="0.08" color="#FF7A00" material="roughness: 0.7"></a-sphere>
-            <a-torus radius="0.081" radius-tubular="0.004" color="#1a1a1a"></a-torus>
-            <a-torus radius="0.081" radius-tubular="0.004" color="#1a1a1a" rotation="0 90 0"></a-torus>
-            <a-torus radius="0.081" radius-tubular="0.004" color="#1a1a1a" rotation="90 0 0"></a-torus>
+            <a-sphere id="bballSkin" radius="0.08" color="#ffffff" material="roughness: 0.75" ptex="type: basketball" shadow="cast: true; receive: false"></a-sphere>
           </a-entity>
         </a-entity>
 
-        <!-- ============ MINIJUEGO: FÚTBOL ============ -->
-        <a-entity id="soccerGame" position="0 0.2 -0.2" visible="false">
-          <a-entity id="soccerFocus" position="0 0.12 -0.25"></a-entity>
-          <!-- Cancha -->
-          <a-plane width="1.6" height="2.0" rotation="-90 0 0" position="0 0 -0.2" color="#2E7D32"></a-plane>
-          <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 -0.45" color="#388E3C"></a-plane>
-          <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 0.05" color="#388E3C"></a-plane>
-          <a-plane width="1.6" height="0.25" rotation="-90 0 0" position="0 0.001 0.55" color="#388E3C"></a-plane>
-          <!-- Bordes de neón -->
-          <a-box width="1.62" height="0.02" depth="0.02" position="0 0.01 -1.2" material="shader: flat; color: #00E5FF"></a-box>
-          <a-box width="1.62" height="0.02" depth="0.02" position="0 0.01 0.8" material="shader: flat; color: #00E5FF"></a-box>
-          <a-box width="0.02" height="0.02" depth="2.0" position="-0.8 0.01 -0.2" material="shader: flat; color: #FF2E88"></a-box>
-          <a-box width="0.02" height="0.02" depth="2.0" position="0.8 0.01 -0.2" material="shader: flat; color: #FF2E88"></a-box>
-          <!-- Líneas -->
-          <a-box width="1.4" height="0.004" depth="0.015" position="0 0.003 -0.9" color="#FFFFFF"></a-box>
-          <a-box width="0.7" height="0.004" depth="0.015" position="0 0.003 -0.55" color="#FFFFFF"></a-box>
-          <a-box width="0.015" height="0.004" depth="0.35" position="-0.35 0.003 -0.725" color="#FFFFFF"></a-box>
-          <a-box width="0.015" height="0.004" depth="0.35" position="0.35 0.003 -0.725" color="#FFFFFF"></a-box>
-          <a-circle radius="0.025" rotation="-90 0 0" position="0 0.003 0.6" color="#FFFFFF"></a-circle>
-          <!-- Portería -->
-          <a-cylinder radius="0.02" height="0.4" position="-0.45 0.2 -0.9" color="#FFFFFF"></a-cylinder>
-          <a-cylinder radius="0.02" height="0.4" position="0.45 0.2 -0.9" color="#FFFFFF"></a-cylinder>
-          <a-cylinder radius="0.02" height="0.94" position="0 0.4 -0.9" rotation="0 0 90" color="#FFFFFF"></a-cylinder>
-          <!-- Red -->
-          <a-entity geometry="primitive: plane; width: 0.9; height: 0.4; segmentsWidth: 14; segmentsHeight: 6"
-            material="color: #FFFFFF; wireframe: true; side: double" position="0 0.2 -1.06"></a-entity>
-          <a-entity geometry="primitive: plane; width: 0.16; height: 0.4; segmentsWidth: 3; segmentsHeight: 6"
-            material="color: #FFFFFF; wireframe: true; side: double" position="-0.45 0.2 -0.98" rotation="0 90 0"></a-entity>
-          <a-entity geometry="primitive: plane; width: 0.16; height: 0.4; segmentsWidth: 3; segmentsHeight: 6"
-            material="color: #FFFFFF; wireframe: true; side: double" position="0.45 0.2 -0.98" rotation="0 90 0"></a-entity>
-          <a-entity geometry="primitive: plane; width: 0.9; height: 0.16; segmentsWidth: 14; segmentsHeight: 3"
-            material="color: #FFFFFF; wireframe: true; side: double" position="0 0.4 -0.98" rotation="90 0 0"></a-entity>
-          <!-- Efecto de gol -->
-          <a-plane id="goalFlash" width="0.9" height="0.4" position="0 0.2 -1.05" color="#FFEA00"
-            material="opacity: 0; transparent: true; side: double; emissive: #FFEA00"
-            animation__o="property: material.opacity; from: 0.8; to: 0; dur: 900; easing: easeOutQuad; startEvents: flash"></a-plane>
+        <!-- ============ MINIJUEGO: FÚTBOL (cancha de pasto) ============ -->
+        <a-entity id="soccerGame" position="0 0 -0.2" visible="false">
+          <a-entity id="soccerFocus" position="0 0.1 -0.2"></a-entity>
+          <!-- Pasto con franjas de corte -->
+          <a-plane width="1.75" height="2.4" rotation="-90 0 0" position="0 0 -0.15" color="#ffffff"
+            material="roughness: 0.95" ptex="type: grass; repeat: 1 1" shadow="cast: false; receive: true"></a-plane>
+          <!-- Líneas de cal -->
+          <a-box width="1.6" height="0.003" depth="0.012" position="0 0.003 -0.9" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="1.95" position="-0.8 0.003 0.075" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="1.95" position="0.8 0.003 0.075" color="#F5F5F5"></a-box>
+          <a-box width="0.86" height="0.003" depth="0.012" position="0 0.003 -0.5" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.4" position="-0.43 0.003 -0.7" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.4" position="0.43 0.003 -0.7" color="#F5F5F5"></a-box>
+          <a-box width="0.46" height="0.003" depth="0.012" position="0 0.003 -0.76" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.14" position="-0.23 0.003 -0.83" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="0.14" position="0.23 0.003 -0.83" color="#F5F5F5"></a-box>
+          <a-ring radius-inner="0.15" radius-outer="0.162" theta-start="200" theta-length="140" rotation="-90 0 0" position="0 0.003 -0.6" color="#F5F5F5" material="shader: flat"></a-ring>
+          <a-circle radius="0.018" rotation="-90 0 0" position="0 0.003 0.6" color="#F5F5F5" material="shader: flat"></a-circle>
 
-          <!-- Portero (se mueve de lado a lado por JS) -->
-          <a-entity id="keeper" position="0 0 -0.84">
-            <a-box width="0.2" height="0.26" depth="0.08" position="0 0.13 0" color="#FF1744"></a-box>
-            <a-box width="0.2" height="0.04" depth="0.082" position="0 0.2 0" color="#FFFFFF"></a-box>
-            <a-sphere radius="0.05" position="0 0.31 0" color="#FFCC80"></a-sphere>
-            <a-box width="0.05" height="0.06" depth="0.06" position="-0.13 0.22 0" color="#FFEA00"></a-box>
-            <a-box width="0.05" height="0.06" depth="0.06" position="0.13 0.22 0" color="#FFEA00"></a-box>
+          <!-- Portería -->
+          <a-entity id="goalFrame" shadow="cast: true; receive: false">
+            <a-cylinder radius="0.018" height="0.4" position="-0.45 0.2 -0.9" color="#FAFAFA" material="roughness: 0.3; metalness: 0.2"></a-cylinder>
+            <a-cylinder radius="0.018" height="0.4" position="0.45 0.2 -0.9" color="#FAFAFA" material="roughness: 0.3; metalness: 0.2"></a-cylinder>
+            <a-cylinder radius="0.018" height="0.936" position="0 0.4 -0.9" rotation="0 0 90" color="#FAFAFA" material="roughness: 0.3; metalness: 0.2"></a-cylinder>
+            <a-cylinder radius="0.008" height="0.22" position="-0.45 0.2 -1.0" rotation="62 0 0" color="#BDBDBD"></a-cylinder>
+            <a-cylinder radius="0.008" height="0.22" position="0.45 0.2 -1.0" rotation="62 0 0" color="#BDBDBD"></a-cylinder>
+          </a-entity>
+          <!-- Red -->
+          <a-entity geometry="primitive: plane; width: 0.9; height: 0.4; segmentsWidth: 18; segmentsHeight: 8"
+            material="color: #EEEEEE; wireframe: true; side: double; opacity: 0.85; transparent: true" position="0 0.2 -1.08"></a-entity>
+          <a-entity geometry="primitive: plane; width: 0.18; height: 0.4; segmentsWidth: 4; segmentsHeight: 8"
+            material="color: #EEEEEE; wireframe: true; side: double; opacity: 0.85; transparent: true" position="-0.45 0.2 -0.99" rotation="0 90 0"></a-entity>
+          <a-entity geometry="primitive: plane; width: 0.18; height: 0.4; segmentsWidth: 4; segmentsHeight: 8"
+            material="color: #EEEEEE; wireframe: true; side: double; opacity: 0.85; transparent: true" position="0.45 0.2 -0.99" rotation="0 90 0"></a-entity>
+          <a-entity geometry="primitive: plane; width: 0.9; height: 0.18; segmentsWidth: 18; segmentsHeight: 4"
+            material="color: #EEEEEE; wireframe: true; side: double; opacity: 0.85; transparent: true" position="0 0.4 -0.99" rotation="90 0 0"></a-entity>
+          <a-plane id="goalFlash" width="0.9" height="0.4" position="0 0.2 -1.07"
+            material="shader: flat; color: #FFEA00; opacity: 0; transparent: true; side: double"
+            animation__o="property: material.opacity; from: 0.7; to: 0; dur: 900; easing: easeOutQuad; startEvents: flash"></a-plane>
+
+          <!-- Portero (persona) -->
+          <a-entity id="keeper" position="0 0 -0.84" shadow="cast: true; receive: false">
+            <a-box width="0.045" height="0.12" depth="0.045" position="-0.04 0.06 0" color="#111111"></a-box>
+            <a-box width="0.045" height="0.12" depth="0.045" position="0.04 0.06 0" color="#111111"></a-box>
+            <a-box width="0.14" height="0.06" depth="0.07" position="0 0.15 0" color="#212121"></a-box>
+            <a-box width="0.16" height="0.15" depth="0.075" position="0 0.255 0" color="#00C853" material="roughness: 0.8"></a-box>
+            <a-box width="0.04" height="0.15" depth="0.04" position="-0.115 0.29 0" rotation="0 0 -35" color="#00C853"></a-box>
+            <a-box width="0.04" height="0.15" depth="0.04" position="0.115 0.29 0" rotation="0 0 35" color="#00C853"></a-box>
+            <a-box width="0.05" height="0.05" depth="0.05" position="-0.16 0.36 0" color="#FFEB3B" material="roughness: 0.6"></a-box>
+            <a-box width="0.05" height="0.05" depth="0.05" position="0.16 0.36 0" color="#FFEB3B" material="roughness: 0.6"></a-box>
+            <a-sphere radius="0.045" position="0 0.375 0" color="#C68642" material="roughness: 0.7"></a-sphere>
+            <a-sphere radius="0.047" position="0 0.385 -0.004" theta-length="80" color="#2B1B10" material="roughness: 0.9"></a-sphere>
           </a-entity>
 
           <!-- Flecha de puntería -->
           <a-entity id="arrow" position="0 0.03 0.6">
-            <a-cylinder radius="0.012" height="0.16" rotation="90 0 0" position="0 0 -0.16" color="#FFEA00"
-              material="emissive: #FFEA00; emissiveIntensity: 0.6"></a-cylinder>
-            <a-cone radius-bottom="0.04" radius-top="0" height="0.09" rotation="-90 0 0" position="0 0 -0.28" color="#FFEA00"
-              material="emissive: #FFEA00; emissiveIntensity: 0.6"></a-cone>
+            <a-cylinder radius="0.012" height="0.16" rotation="90 0 0" position="0 0 -0.16" color="#FFEA00" material="shader: flat; opacity: 0.9; transparent: true"></a-cylinder>
+            <a-cone radius-bottom="0.04" radius-top="0" height="0.09" rotation="-90 0 0" position="0 0 -0.28" color="#FFEA00" material="shader: flat; opacity: 0.9; transparent: true"></a-cone>
           </a-entity>
 
           <!-- Balón -->
           <a-entity id="sball" position="0 0.06 0.6">
-            <a-sphere id="sballSkin" radius="0.06" color="#FFFFFF"></a-sphere>
-            <a-entity geometry="primitive: icosahedron; radius: 0.061; detail: 1" material="color: #111; wireframe: true"></a-entity>
-            <!-- Zona de toque grande -->
+            <a-sphere id="sballSkin" radius="0.06" color="#ffffff" material="roughness: 0.5" ptex="type: soccer" shadow="cast: true; receive: false"></a-sphere>
             <a-sphere id="sballHit" radius="0.16" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
           </a-entity>
+        </a-entity>
+
+        <!-- ============ MINIJUEGO: PING-PONG (mesa real) ============ -->
+        <a-entity id="pingGame" position="0 0 -0.1" visible="false">
+          <a-entity id="pingFocus" position="0 0.38 -0.05"></a-entity>
+          <a-entity shadow-catcher="opacity: 0.45" scale="3 3 3"></a-entity>
+          <!-- Mesa -->
+          <a-entity id="pingTable" shadow="cast: true; receive: true">
+            <a-box width="0.76" height="0.025" depth="1.37" position="0 0.3675 0" color="#ffffff" material="roughness: 0.55" ptex="type: table"></a-box>
+            <a-box width="0.7" height="0.03" depth="1.3" position="0 0.34 0" color="#263238" material="metalness: 0.6; roughness: 0.4"></a-box>
+            <a-cylinder radius="0.014" height="0.33" position="-0.32 0.165 -0.6" color="#37474F" material="metalness: 0.8; roughness: 0.35"></a-cylinder>
+            <a-cylinder radius="0.014" height="0.33" position="0.32 0.165 -0.6" color="#37474F" material="metalness: 0.8; roughness: 0.35"></a-cylinder>
+            <a-cylinder radius="0.014" height="0.33" position="-0.32 0.165 0.6" color="#37474F" material="metalness: 0.8; roughness: 0.35"></a-cylinder>
+            <a-cylinder radius="0.014" height="0.33" position="0.32 0.165 0.6" color="#37474F" material="metalness: 0.8; roughness: 0.35"></a-cylinder>
+          </a-entity>
+          <!-- Malla -->
+          <a-entity geometry="primitive: plane; width: 0.84; height: 0.07; segmentsWidth: 40; segmentsHeight: 4"
+            material="color: #263238; wireframe: true; side: double; opacity: 0.9; transparent: true" position="0 0.415 0"></a-entity>
+          <a-box width="0.84" height="0.008" depth="0.006" position="0 0.452 0" color="#FFFFFF"></a-box>
+          <a-cylinder radius="0.008" height="0.09" position="-0.42 0.41 0" color="#263238" material="metalness: 0.7"></a-cylinder>
+          <a-cylinder radius="0.008" height="0.09" position="0.42 0.41 0" color="#263238" material="metalness: 0.7"></a-cylinder>
+          <!-- Mi raqueta (cerca) -->
+          <a-entity id="paddleP" position="0 0.47 0.78" rotation="-15 0 0" shadow="cast: true; receive: false">
+            <a-cylinder radius="0.07" height="0.012" rotation="90 0 0" color="#ffffff" material="roughness: 0.6" ptex="type: rubber; color: #C62828"></a-cylinder>
+            <a-box width="0.026" height="0.09" depth="0.018" position="0 -0.11 0" color="#B9835A" material="roughness: 0.7"></a-box>
+          </a-entity>
+          <!-- Raqueta rival (lejos) -->
+          <a-entity id="paddleR" position="0 0.47 -0.78" rotation="15 0 0" shadow="cast: true; receive: false">
+            <a-cylinder radius="0.07" height="0.012" rotation="90 0 0" color="#ffffff" material="roughness: 0.6" ptex="type: rubber; color: #1E1E1E"></a-cylinder>
+            <a-box width="0.026" height="0.09" depth="0.018" position="0 -0.11 0" color="#B9835A" material="roughness: 0.7"></a-box>
+          </a-entity>
+          <!-- Pelota -->
+          <a-sphere id="pball" radius="0.02" position="0 0.5 0.7" color="#FFFFFF" material="roughness: 0.35; emissive: #ffffff; emissiveIntensity: 0.15" shadow="cast: true; receive: false"></a-sphere>
         </a-entity>
 
       </a-entity>
@@ -575,6 +673,13 @@
 
   <script>
     const THREE = AFRAME.THREE;
+    const $ = (id) => document.getElementById(id);
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const rnd = (a, b) => a + Math.random() * (b - a);
+
+    /* =========================================================
+       COMPONENTES A-FRAME PROPIOS
+       ========================================================= */
 
     // Texto 3D dibujado en un canvas (no necesita fuentes externas)
     AFRAME.registerComponent('canvas-text', {
@@ -587,8 +692,7 @@
         ctx.font = font;
         const tw = Math.ceil(ctx.measureText(this.data.text).width);
         c.width = tw + pad * 2; c.height = 128;
-        ctx.font = font;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
         ctx.strokeText(this.data.text, c.width / 2, c.height / 2);
         ctx.fillStyle = this.data.color;
@@ -597,61 +701,269 @@
         tex.colorSpace = THREE.SRGBColorSpace;
         const h = 0.075 * (this.data.width / 1.2);
         const geo = new THREE.PlaneGeometry(h * c.width / c.height, h);
-        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
-        this.mesh = new THREE.Mesh(geo, mat);
-        this.el.setObject3D('mesh', this.mesh);
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
+        this.el.setObject3D('mesh', new THREE.Mesh(geo, mat));
       },
       remove: function () { this.el.removeObject3D('mesh'); }
     });
-    const $ = (id) => document.getElementById(id);
+
+    // ---------- Texturas realistas generadas por código (sin descargar imágenes) ----------
+    function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+    function dots(g, w, h, n, colors, s1, s2) {
+      for (let i = 0; i < n; i++) {
+        g.fillStyle = colors[i % colors.length];
+        const s = rnd(s1, s2);
+        g.fillRect(Math.random() * w, Math.random() * h, s, s);
+      }
+    }
+    const TEXGEN = {
+      // Tablones de madera con vetas y nudos
+      wood(color) {
+        const c = makeCanvas(512, 512), g = c.getContext('2d');
+        g.fillStyle = color || '#7B4A26'; g.fillRect(0, 0, 512, 512);
+        for (let p = 0; p < 8; p++) {
+          const y = p * 64;
+          g.fillStyle = `rgba(${rnd(0, 40) | 0},${rnd(0, 20) | 0},0,${rnd(0.05, 0.22)})`; g.fillRect(0, y, 512, 64);
+          for (let k = 0; k < 16; k++) {
+            g.strokeStyle = `rgba(45,22,6,${rnd(0.08, 0.28)})`; g.lineWidth = rnd(0.6, 2.2);
+            g.beginPath(); const yy = y + rnd(4, 60); g.moveTo(0, yy);
+            for (let x = 0; x <= 512; x += 24) g.lineTo(x, yy + Math.sin(x * 0.018 + k) * rnd(1, 3));
+            g.stroke();
+          }
+          g.fillStyle = 'rgba(25,12,2,0.6)'; g.fillRect(0, y, 512, 3);
+          g.fillStyle = 'rgba(255,220,170,0.08)'; g.fillRect(0, y + 3, 512, 2);
+        }
+        for (let i = 0; i < 7; i++) {
+          g.fillStyle = 'rgba(55,28,8,0.4)'; g.beginPath();
+          g.ellipse(rnd(0, 512), rnd(0, 512), rnd(6, 14), rnd(3, 6), 0, 0, Math.PI * 2); g.fill();
+        }
+        return c;
+      },
+      // Piso de parqué tipo cancha de baloncesto
+      parquet() {
+        const c = makeCanvas(1024, 1024), g = c.getContext('2d');
+        g.fillStyle = '#C8925A'; g.fillRect(0, 0, 1024, 1024);
+        const sw = 32;
+        for (let x = 0; x < 1024; x += sw) {
+          let y = -rnd(0, 200);
+          while (y < 1024) {
+            const len = rnd(150, 320);
+            g.fillStyle = `hsl(${rnd(26, 34)}, ${rnd(42, 55)}%, ${rnd(52, 64)}%)`;
+            g.fillRect(x, y, sw, len);
+            for (let k = 0; k < 4; k++) {
+              g.strokeStyle = `rgba(120,70,30,${rnd(0.08, 0.2)})`; g.lineWidth = 1;
+              g.beginPath(); const xx = x + rnd(3, sw - 3); g.moveTo(xx, y); g.lineTo(xx + rnd(-3, 3), y + len); g.stroke();
+            }
+            g.fillStyle = 'rgba(70,40,15,0.55)'; g.fillRect(x, y, sw, 2);
+            y += len;
+          }
+          g.fillStyle = 'rgba(70,40,15,0.45)'; g.fillRect(x, 0, 1.5, 1024);
+        }
+        const gr = g.createLinearGradient(0, 0, 1024, 1024);
+        gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0.08)');
+        g.fillStyle = gr; g.fillRect(0, 0, 1024, 1024);
+        return c;
+      },
+      // Pasto con franjas de corte
+      grass() {
+        const c = makeCanvas(512, 1024), g = c.getContext('2d');
+        for (let b = 0; b < 10; b++) {
+          g.fillStyle = b % 2 ? '#3E8E3A' : '#4C9F44';
+          g.fillRect(0, b * 102.4, 512, 102.4);
+        }
+        dots(g, 512, 1024, 26000, ['#2E7D32', '#5DB04F', '#3B8A36', '#66BB55', '#2F6F2A'], 1, 3);
+        for (let i = 0; i < 2500; i++) {
+          g.strokeStyle = `rgba(${rnd(20, 60) | 0},${rnd(90, 150) | 0},${rnd(20, 50) | 0},0.5)`;
+          g.lineWidth = 1; g.beginPath(); const x = rnd(0, 512), y = rnd(0, 1024);
+          g.moveTo(x, y); g.lineTo(x + rnd(-2, 2), y - rnd(3, 7)); g.stroke();
+        }
+        return c;
+      },
+      // Mesa de ping-pong azul con líneas blancas
+      table() {
+        const c = makeCanvas(512, 924), g = c.getContext('2d');
+        g.fillStyle = '#1C4F8F'; g.fillRect(0, 0, 512, 924);
+        dots(g, 512, 924, 9000, ['rgba(255,255,255,0.05)', 'rgba(0,0,0,0.07)'], 1, 2);
+        g.fillStyle = '#F5F5F5';
+        g.fillRect(0, 0, 512, 12); g.fillRect(0, 912, 512, 12);
+        g.fillRect(0, 0, 12, 924); g.fillRect(500, 0, 12, 924);
+        g.fillRect(254, 0, 4, 924);
+        const gr = g.createLinearGradient(0, 0, 512, 924);
+        gr.addColorStop(0, 'rgba(255,255,255,0.07)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, 512, 924);
+        return c;
+      },
+      // Balón de baloncesto (cuero con granitos y costuras)
+      basketball(color) {
+        const W = 1024, H = 512, c = makeCanvas(W, H), g = c.getContext('2d');
+        g.fillStyle = color || '#D4651F'; g.fillRect(0, 0, W, H);
+        dots(g, W, H, 30000, ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.08)', 'rgba(90,30,0,0.12)'], 1.5, 3);
+        g.strokeStyle = '#1A1A1A'; g.lineWidth = 9; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
+        [0, W / 4, W / 2, 3 * W / 4].forEach((x, i) => {
+          if (i % 2 === 0) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+        });
+        [W / 4, 3 * W / 4].forEach((x0) => {
+          g.beginPath();
+          for (let y = 0; y <= H; y += 8) { const x = x0 + Math.sin((y / H) * Math.PI) * 150 * (x0 < W / 2 ? 1 : -1); if (y === 0) g.moveTo(x0, 0); else g.lineTo(x, y); }
+          g.stroke();
+          g.beginPath();
+          for (let y = 0; y <= H; y += 8) { const x = x0 - Math.sin((y / H) * Math.PI) * 150 * (x0 < W / 2 ? 1 : -1); if (y === 0) g.moveTo(x0, 0); else g.lineTo(x, y); }
+          g.stroke();
+        });
+        return c;
+      },
+      // Balón de fútbol (pentágonos negros)
+      soccer(color) {
+        const W = 1024, H = 512, c = makeCanvas(W, H), g = c.getContext('2d');
+        g.fillStyle = color || '#F7F7F7'; g.fillRect(0, 0, W, H);
+        const pent = (cx, cy, r, sx) => {
+          g.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+            const x = cx + Math.cos(a) * r * sx, y = cy + Math.sin(a) * r;
+            if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+          }
+          g.closePath(); g.fill();
+        };
+        g.fillStyle = '#151515';
+        g.fillRect(0, 0, W, 34); g.fillRect(0, H - 34, W, 34);
+        const lat = 26.565 * Math.PI / 180;
+        for (let k = 0; k < 5; k++) {
+          for (const s of [1, -1]) {
+            const lon = k * 72 + (s < 0 ? 36 : 0);
+            const cx = (lon / 360) * W, cy = H / 2 - s * (lat / Math.PI) * H;
+            const sx = 1 / Math.cos(lat);
+            pent(cx, cy, 46, sx); pent(cx + W, cy, 46, sx); pent(cx - W, cy, 46, sx);
+          }
+        }
+        g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = 2;
+        for (let y = 60; y < H; y += 70) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+        return c;
+      },
+      // Goma de raqueta
+      rubber(color) {
+        const c = makeCanvas(256, 256), g = c.getContext('2d');
+        g.fillStyle = color || '#C62828'; g.fillRect(0, 0, 256, 256);
+        dots(g, 256, 256, 5000, ['rgba(0,0,0,0.15)', 'rgba(255,255,255,0.06)'], 1, 2);
+        g.strokeStyle = '#E8C9A0'; g.lineWidth = 10; g.beginPath(); g.arc(128, 128, 124, 0, Math.PI * 2); g.stroke();
+        return c;
+      }
+    };
+    const TEX_CANVAS = {};
+    function getTexCanvas(type, color) {
+      const key = type + '|' + (color || '');
+      if (!TEX_CANVAS[key]) TEX_CANVAS[key] = TEXGEN[type](color || undefined);
+      return TEX_CANVAS[key];
+    }
+    AFRAME.registerComponent('ptex', {
+      schema: { type: { default: 'wood' }, repeat: { type: 'vec2', default: { x: 1, y: 1 } }, color: { default: '' } },
+      init: function () {
+        this.apply = this.apply.bind(this);
+        this.el.addEventListener('object3dset', this.apply);
+        this.el.addEventListener('loaded', this.apply);
+      },
+      update: function () { this.apply(); setTimeout(this.apply, 0); },
+      apply: function () {
+        const mesh = this.el.getObject3D('mesh');
+        if (!mesh || !TEXGEN[this.data.type]) return;
+        const key = [this.data.type, this.data.color, this.data.repeat.x, this.data.repeat.y].join('|');
+        if (mesh.material.map && mesh.material.map.userData.ptexKey === key) return;
+        const tex = new THREE.CanvasTexture(getTexCanvas(this.data.type, this.data.color));
+        tex.userData.ptexKey = key;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(this.data.repeat.x, this.data.repeat.y);
+        tex.anisotropy = 4;
+        const old = mesh.material.map;
+        mesh.material.map = tex;
+        mesh.material.needsUpdate = true;
+        if (old && old !== tex) old.dispose();
+      },
+      remove: function () { this.el.removeEventListener('object3dset', this.apply); this.el.removeEventListener('loaded', this.apply); }
+    });
+
+    // Plano invisible que solo muestra sombras -> la sombra cae sobre el piso REAL de la cámara
+    AFRAME.registerComponent('shadow-catcher', {
+      schema: { opacity: { default: 0.4 } },
+      init: function () {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({ opacity: this.data.opacity }));
+        m.rotation.x = -Math.PI / 2; m.receiveShadow = true;
+        this.el.setObject3D('mesh', m);
+      }
+    });
+
+    // Reflejos de ambiente: hace que el metal y el oro brillen como de verdad
+    AFRAME.registerComponent('env-light', {
+      init: function () {
+        const sc = this.el;
+        const build = () => {
+          try {
+            const c = makeCanvas(512, 256), g = c.getContext('2d');
+            const gr = g.createLinearGradient(0, 0, 0, 256);
+            gr.addColorStop(0, '#FFFFFF'); gr.addColorStop(0.42, '#D6DEE8'); gr.addColorStop(0.52, '#8C8278'); gr.addColorStop(1, '#3A332D');
+            g.fillStyle = gr; g.fillRect(0, 0, 512, 256);
+            g.fillStyle = 'rgba(255,252,235,0.95)'; g.fillRect(70, 40, 70, 50); g.fillRect(330, 50, 50, 40);
+            g.fillStyle = 'rgba(255,240,210,0.6)'; g.fillRect(200, 20, 120, 18);
+            const tex = new THREE.CanvasTexture(c);
+            tex.mapping = THREE.EquirectangularReflectionMapping;
+            tex.colorSpace = THREE.SRGBColorSpace;
+            const pm = new THREE.PMREMGenerator(sc.renderer);
+            sc.object3D.environment = pm.fromEquirectangular(tex).texture;
+            tex.dispose(); pm.dispose();
+          } catch (e) { console.warn('env-light', e); }
+        };
+        if (sc.renderer) build(); else sc.addEventListener('renderstart', build, { once: true });
+      }
+    });
 
     /* =========================================================
        ESTADO GLOBAL
        ========================================================= */
     const G = {
-      mode: 'start',          // start | chest | menu | basket | soccer
-      gyro: false,            // ¿el celular tiene giroscopio?
+      mode: 'start',          // start | chest | menu | basket | soccer | ping
+      gyro: false,
       score: 0,
       record: 0,
       started: false,
-      streak: 0              // aciertos seguidos
+      streak: 0
     };
 
     // ---------- Baloncesto ----------
     const B = {
-      GRAV: 4,
-      R: 0.08,                                  // radio balón
-      HOOP: new THREE.Vector3(0, 1.0, -0.5),    // centro del aro
-      R_HOOP: 0.2,
-      TUBE: 0.012,
+      GRAV: 4, R: 0.08,
+      HOOP: new THREE.Vector3(0, 1.0, -0.5), R_HOOP: 0.2, TUBE: 0.012,
       START: new THREE.Vector3(0, 0.2, 0.7),
-      BOARD_Z: -0.765,                          // cara frontal del tablero
-      BOARD_X: 0.35, BOARD_Y0: 0.925, BOARD_Y1: 1.375,
-      T: 0.95,                                  // tiempo de vuelo ideal
-      state: 'ready',
-      pos: new THREE.Vector3(), vel: new THREE.Vector3(),
-      t: 0, scored: false, resetAt: 99,
-      shots: 0, hits: 0,
-      meterPhase: 0, meter: 0,
-      hoopPhase: 0, hoopX: 0, lastRim: -1
+      BOARD_Z: -0.7725, BOARD_X: 0.35, BOARD_Y0: 0.925, BOARD_Y1: 1.375,
+      T: 0.95,
+      state: 'ready', pos: new THREE.Vector3(), vel: new THREE.Vector3(),
+      t: 0, scored: false, resetAt: 99, shots: 0, hits: 0,
+      meterPhase: 0, meter: 0, hoopPhase: 0, hoopX: 0, lastRim: -1
     };
 
     // ---------- Fútbol ----------
     const S = {
-      GRAV: 4,
-      R: 0.06,
+      GRAV: 4, R: 0.06,
       START: new THREE.Vector3(0, 0.06, 0.6),
-      GOAL_Z: -0.9, HALF_W: 0.45, H: 0.4, POST_R: 0.02,
-      KEEPER_Z: -0.84, KEEPER_HALF: { x: 0.15, y: 0.18, z: 0.05 },
+      GOAL_Z: -0.9, HALF_W: 0.45, H: 0.4, POST_R: 0.018,
+      KEEPER_Z: -0.84, KEEPER_HALF: { x: 0.16, y: 0.2, z: 0.05 },
       SPEED: 2.4, VY: 0.8,
-      state: 'ready',
-      pos: new THREE.Vector3(), vel: new THREE.Vector3(),
+      state: 'ready', pos: new THREE.Vector3(), vel: new THREE.Vector3(),
       t: 0, result: null, resetAt: 99,
-      aimPhase: 0, aim: 0,
-      keeperPhase: 0, keeperSpeed: 1.6, keeperX: 0,
+      aimPhase: 0, aim: 0, keeperPhase: 0, keeperSpeed: 1.6, keeperX: 0,
       shots: 0, goals: 0
     };
 
+    // ---------- Ping-Pong ----------
+    const P = {
+      T: 0.38, R: 0.02, GRAV: 2.6, BOUNCE: 0.75,
+      HALF_X: 0.38, HALF_Z: 0.685, PZ: 0.78, PADDLE_HALF: 0.1, TO_WIN: 7,
+      pos: new THREE.Vector3(0, 0.5, 0.7), vel: new THREE.Vector3(),
+      px: 0, pxTarget: 0, pVel: 0, rx: 0, rVel: 0, rxNet: 0,
+      me: 0, rival: 0, server: 1,
+      state: 'serve', serveAt: 0, t: 0, aiErr: 0, lastSend: 0, over: false,
+      online: false
+    };
 
     /* =========================================================
        SONIDOS (generados con Web Audio, sin archivos)
@@ -687,6 +999,9 @@
       kick()   { tone(140, 0.16, 'sine', 0.35, 0, 0.45); },
       save()   { tone(200, 0.35, 'sawtooth', 0.1, 0, 0.55); },
       miss()   { tone(330, 0.3, 'triangle', 0.09, 0, 0.6); },
+      pong()   { tone(1250, 0.05, 'square', 0.06); },
+      bounce() { tone(950, 0.04, 'sine', 0.08); },
+      join()   { [440, 660, 880].forEach((f, i) => tone(f, 0.18, 'sine', 0.12, i * 0.1)); },
       tap()    { tone(880, 0.06, 'sine', 0.07); }
     };
 
@@ -716,7 +1031,7 @@
         const a = Math.random() * Math.PI * 2, r = 0.1 + Math.random() * 0.3;
         c.setAttribute('radius', 0.035); c.setAttribute('height', 0.008);
         c.setAttribute('rotation', '90 0 0');
-        c.setAttribute('material', 'color: #FFD700; metalness: 0.9; roughness: 0.2; emissive: #FFB300; emissiveIntensity: 0.5; transparent: true; opacity: 1');
+        c.setAttribute('material', 'color: #FFC107; metalness: 1; roughness: 0.2; transparent: true; opacity: 1');
         c.setAttribute('animation__m', `property: position; from: 0 0 0; to: ${(Math.cos(a) * r).toFixed(3)} ${(0.45 + Math.random() * 0.45).toFixed(3)} ${(Math.sin(a) * r).toFixed(3)}; dur: 1100; easing: easeOutQuad`);
         c.setAttribute('animation__r', `property: rotation; from: 90 0 0; to: 90 ${720 + Math.random() * 720} 0; dur: 1100; easing: linear`);
         c.setAttribute('animation__f', 'property: material.opacity; from: 1; to: 0; dur: 500; delay: 900');
@@ -733,47 +1048,52 @@
       parent.appendChild(e);
       setTimeout(() => e.parentNode && e.parentNode.removeChild(e), 1050);
     }
+    function burstSparkles() {
+      const box = $('sparkles');
+      for (let i = 0; i < 16; i++) {
+        const s = document.createElement('a-sphere');
+        const a = Math.random() * Math.PI * 2, r = 0.15 + Math.random() * 0.35;
+        const to = `${(Math.cos(a) * r).toFixed(3)} ${(0.3 + Math.random() * 0.5).toFixed(3)} ${(Math.sin(a) * r).toFixed(3)}`;
+        s.setAttribute('radius', 0.01 + Math.random() * 0.012);
+        s.setAttribute('material', `shader: flat; color: ${CONFETTI[i % CONFETTI.length]}; transparent: true; opacity: 1`);
+        s.setAttribute('animation__m', `property: position; from: 0 0 0; to: ${to}; dur: 1100; easing: easeOutQuad`);
+        s.setAttribute('animation__f', 'property: material.opacity; from: 1; to: 0; dur: 1100; easing: easeInQuad');
+        box.appendChild(s);
+        setTimeout(() => s.parentNode && s.parentNode.removeChild(s), 1200);
+      }
+    }
+    function makeHoloParticles() {
+      const box = $('holoParticles');
+      for (let i = 0; i < 12; i++) {
+        const sp = document.createElement('a-sphere');
+        const a = Math.random() * Math.PI * 2, r = 0.2 + Math.random() * 0.3;
+        const x = (Math.cos(a) * r).toFixed(3), z = (Math.sin(a) * r).toFixed(3);
+        sp.setAttribute('radius', 0.006 + Math.random() * 0.006);
+        sp.setAttribute('material', `shader: flat; color: ${i % 2 ? '#FFE082' : '#FFFFFF'}; transparent: true; opacity: 0.9`);
+        sp.setAttribute('animation__m', `property: position; from: ${x} 0 ${z}; to: ${x} 0.8 ${z}; dur: ${2200 + Math.random() * 1800}; delay: ${Math.random() * 2000}; loop: true; easing: linear`);
+        sp.setAttribute('animation__f', `property: material.opacity; from: 0.9; to: 0; dur: 2600; delay: ${Math.random() * 2000}; loop: true; easing: easeInQuad`);
+        box.appendChild(sp);
+      }
+    }
     function hit() {
       G.streak++;
       $('streak').textContent = G.streak;
       $('streakPill').classList.toggle('hidden', G.streak < 2);
       return G.streak > 1 ? `  🔥x${G.streak}` : '';
     }
-    function missed() {
-      G.streak = 0;
-      $('streakPill').classList.add('hidden');
-    }
-    // Partículas holográficas que suben (se crean una vez)
-    function makeHoloParticles() {
-      const box = $('holoParticles');
-      for (let i = 0; i < 14; i++) {
-        const sp = document.createElement('a-sphere');
-        const a = Math.random() * Math.PI * 2, r = 0.15 + Math.random() * 0.35;
-        const x = (Math.cos(a) * r).toFixed(3), z = (Math.sin(a) * r).toFixed(3);
-        sp.setAttribute('radius', 0.008 + Math.random() * 0.008);
-        sp.setAttribute('material', `shader: flat; color: ${i % 2 ? '#00E5FF' : '#FFFFFF'}; transparent: true; opacity: 0.9`);
-        sp.setAttribute('animation__m', `property: position; from: ${x} 0 ${z}; to: ${x} 0.9 ${z}; dur: ${2200 + Math.random() * 1800}; delay: ${Math.random() * 2000}; loop: true; easing: linear`);
-        sp.setAttribute('animation__f', `property: material.opacity; from: 0.9; to: 0; dur: 2600; delay: ${Math.random() * 2000}; loop: true; easing: easeInQuad`);
-        box.appendChild(sp);
-      }
-    }
+    function missed() { G.streak = 0; $('streakPill').classList.add('hidden'); }
 
     /* =========================================================
        UTILIDADES DE INTERFAZ
        ========================================================= */
     const STATUS_GYRO = {
-      chest:  '🎯 Apunta el círculo amarillo al cofre y toca la pantalla',
-      menu:   '🎯 Apunta a un portal (Baloncesto o Fútbol) y toca',
-      basket: '🏀 Desliza hacia arriba o pulsa LANZAR',
-      soccer: '🎯 Apunta al balón y toca para patear'
+      chest: '🎯 Apunta el círculo amarillo al cofre y toca la pantalla',
+      menu:  '🎯 Apunta a un portal y toca la pantalla'
     };
     const STATUS_TOUCH = {
-      chest:  '👆 Toca el cofre para abrirlo',
-      menu:   '✨ Toca un portal: Baloncesto o Fútbol',
-      basket: '🏀 Desliza hacia arriba o pulsa LANZAR',
-      soccer: '⚽ Toca el balón para patear'
+      chest: '👆 Toca el cofre para abrirlo',
+      menu:  '✨ Toca un portal: Baloncesto, Ping-Pong o Fútbol'
     };
-
     let statusTimer = null;
     function setStatus(txt, keep) {
       const el = $('status');
@@ -782,25 +1102,20 @@
       clearTimeout(statusTimer);
       if (!keep) statusTimer = setTimeout(() => el.classList.add('fade'), 5000);
     }
-
     function refreshStatus() {
       if (!G.started) return;
-      // En los minijuegos las instrucciones ya están en las tarjetas de abajo
-      if (G.mode === 'basket' || G.mode === 'soccer') { $('status').classList.add('fade'); return; }
-      setStatus((G.gyro ? STATUS_GYRO : STATUS_TOUCH)[G.mode] || '');
+      const map = G.gyro ? STATUS_GYRO : STATUS_TOUCH;
+      if (!map[G.mode]) { $('status').classList.add('fade'); return; }
+      setStatus(map[G.mode]);
     }
-
     let toastTimer = null;
     function toast(txt) {
       const el = $('toast');
       el.textContent = txt;
-      el.classList.remove('show');
-      void el.offsetWidth;          // reinicia la animación CSS
-      el.classList.add('show');
+      el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
     }
-
     function addPoints(n) {
       G.score += n;
       $('score').textContent = G.score;
@@ -812,34 +1127,32 @@
         try { localStorage.setItem('arCofreRecord', String(G.record)); } catch (e) {}
       }
       if (navigator.vibrate) navigator.vibrate(60);
+      netSend({ t: 'score', s: G.score });
     }
-
     function registrarInteraccion(accion, detalle) {
       try {
         const lista = JSON.parse(localStorage.getItem('arCofreInteracciones') || '[]');
-        lista.push({ accion: accion, detalle: detalle, puntos: G.score, fecha: new Date().toISOString() });
+        lista.push({ accion: accion, detalle: detalle, puntos: G.score, online: !!(NET.conn && NET.conn.open), fecha: new Date().toISOString() });
         localStorage.setItem('arCofreInteracciones', JSON.stringify(lista.slice(-100)));
       } catch (e) {}
     }
-
-    function setClickable(el, on) {
-      if (on) el.classList.add('clickable'); else el.classList.remove('clickable');
-    }
-    function refreshRaycaster() {
-      const rc = $('cursor-raycast').components.raycaster;
-      if (rc) rc.refreshObjects();
-    }
+    function setClickable(el, on) { if (on) el.classList.add('clickable'); else el.classList.remove('clickable'); }
+    function refreshRaycaster() { const rc = $('cursor-raycast').components.raycaster; if (rc) rc.refreshObjects(); }
     function show(el, on) { el.setAttribute('visible', on); }
 
     /* =========================================================
        FLUJO: COFRE -> PORTALES -> MINIJUEGOS
        ========================================================= */
-    function openChest() {
+    const GAMES = {
+      basket: { group: 'basketGame', controls: 'basketControls', reset: () => resetBasketBall(), hello: '🏀 ¡A encestar!', name: 'Baloncesto' },
+      soccer: { group: 'soccerGame', controls: 'soccerControls', reset: () => resetSoccerBall(), hello: '⚽ ¡A meter gol!', name: 'Fútbol' },
+      ping:   { group: 'pingGame',   controls: 'pingControls',   reset: () => resetPingMatch(),  hello: '🏓 ¡A jugar ping-pong!', name: 'Ping-Pong' }
+    };
+
+    function openChest(fromNet) {
       if (G.mode !== 'chest') return;
       G.mode = 'menu';
       setClickable($('chestHit'), false);
-
-      // Detener el balanceo y abrir la tapa
       const body = $('chestBody');
       if (body.components.animation__wobble) body.components.animation__wobble.pause();
       body.setAttribute('rotation', '0 0 0');
@@ -849,96 +1162,62 @@
       burstSparkles();
       coins($('sparkles'), 12);
       sfx.open();
-
-      // Aparecen los portales
       setTimeout(() => {
+        if (G.mode !== 'menu') return;
         show($('portals'), true);
-        $('portalBasket').emit('show');
-        $('portalSoccer').emit('show');
+        ['portalBasket', 'portalPing', 'portalSoccer'].forEach(id => $(id).emit('show'));
         document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, true));
         refreshRaycaster();
         refreshStatus();
       }, 650);
-
       refreshRaycaster();
       toast('✨ ¡Abierto!');
       registrarInteraccion('Abrir cofre', 'menu');
-    }
-
-    function burstSparkles() {
-      const box = $('sparkles');
-      const colors = ['#FFD54F', '#FF2E88', '#00E5FF', '#00E676', '#FFFFFF'];
-      for (let i = 0; i < 16; i++) {
-        const s = document.createElement('a-sphere');
-        const a = Math.random() * Math.PI * 2;
-        const r = 0.15 + Math.random() * 0.35;
-        const to = `${(Math.cos(a) * r).toFixed(3)} ${(0.3 + Math.random() * 0.5).toFixed(3)} ${(Math.sin(a) * r).toFixed(3)}`;
-        s.setAttribute('radius', 0.012 + Math.random() * 0.015);
-        s.setAttribute('color', colors[i % colors.length]);
-        s.setAttribute('material', 'emissive: ' + colors[i % colors.length] + '; emissiveIntensity: 1; transparent: true; opacity: 1');
-        s.setAttribute('animation__m', `property: position; from: 0 0 0; to: ${to}; dur: 1100; easing: easeOutQuad`);
-        s.setAttribute('animation__f', 'property: material.opacity; from: 1; to: 0; dur: 1100; easing: easeInQuad');
-        box.appendChild(s);
-        setTimeout(() => s.parentNode && s.parentNode.removeChild(s), 1200);
-      }
+      if (!fromNet) netSend({ t: 'open' });
     }
 
     function hideMenu() {
-      show($('chest'), false);
-      show($('menuBase'), false);
-      show($('portals'), false);
+      show($('menuGroup'), false);
       document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, false));
     }
 
-    function startBasket() {
-      if (G.mode !== 'menu') return;
+    function goGame(game, fromNet) {
+      const cfg = GAMES[game];
+      if (!cfg) return;
+      if (G.mode === 'chest') openChest(true);
+      if (G.mode !== 'menu') backToMenu(true);
       hideMenu();
-      G.mode = 'basket';
-      show($('basketGame'), true);
-      resetBasketBall();
-      $('basketControls').classList.remove('hidden');
+      G.mode = game;
+      show($(cfg.group), true);
+      $(cfg.controls).classList.remove('hidden');
       $('btnMenu').classList.remove('hidden');
+      setClickable($('sballHit'), game === 'soccer');
+      online() ? (game === 'ping' ? (P.online = true) : startDuel(game)) : (P.online = false);
+      cfg.reset();
       refreshRaycaster();
       refreshStatus();
-      toast('🏀 ¡A encestar!');
+      toast(cfg.hello);
       sfx.portal(); missed();
-      registrarInteraccion('Entrar a minijuego', 'Baloncesto');
-      setTimeout(recenter, 50);
+      registrarInteraccion('Entrar a minijuego', cfg.name);
+      if (!fromNet) netSend({ t: 'game', g: game });
+      setTimeout(recenter, 60);
     }
 
-    function startSoccer() {
-      if (G.mode !== 'menu') return;
-      hideMenu();
-      G.mode = 'soccer';
-      show($('soccerGame'), true);
-      resetSoccerBall();
-      setClickable($('sballHit'), true);
-      $('soccerControls').classList.remove('hidden');
-      $('btnMenu').classList.remove('hidden');
-      refreshRaycaster();
-      refreshStatus();
-      toast('⚽ ¡A meter gol!');
-      sfx.portal(); missed();
-      registrarInteraccion('Entrar a minijuego', 'Fútbol');
-      setTimeout(recenter, 50);
-    }
-
-    function backToMenu() {
-      if (G.mode !== 'basket' && G.mode !== 'soccer') return;
-      show($('basketGame'), false);
-      show($('soccerGame'), false);
+    function backToMenu(fromNet) {
+      if (!GAMES[G.mode]) return;
+      Object.values(GAMES).forEach(cfg => { show($(cfg.group), false); $(cfg.controls).classList.add('hidden'); });
       setClickable($('sballHit'), false);
-      $('basketControls').classList.add('hidden');
-      $('soccerControls').classList.add('hidden');
       $('btnMenu').classList.add('hidden');
-
-      show($('chest'), true);
-      show($('menuBase'), true);
+      endDuel(true);
+      P.online = false;
+      show($('menuGroup'), true);
       show($('portals'), true);
       document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, true));
       G.mode = 'menu';
       refreshRaycaster();
       refreshStatus();
+      if (!fromNet) netSend({ t: 'menu' });
+      setTimeout(recenter, 60);
     }
 
     /* =========================================================
@@ -946,42 +1225,32 @@
        ========================================================= */
     function resetBasketBall() {
       B.state = 'ready';
-      B.pos.copy(B.START);
-      B.vel.set(0, 0, 0);
+      B.pos.copy(B.START); B.vel.set(0, 0, 0);
       B.t = 0; B.scored = false; B.resetAt = 99;
       $('bball').object3D.position.copy(B.pos);
     }
-
-    // p = potencia (1 = perfecta), lat = desvío lateral
     function shootBasket(p, lat) {
       if (G.mode !== 'basket' || B.state !== 'ready') return;
       const d = new THREE.Vector3().subVectors(B.HOOP, B.START);
       const T = B.T;
       B.vel.set(d.x / T + lat, (d.y + 0.5 * B.GRAV * T * T) / T, d.z / T).multiplyScalar(p);
-      B.state = 'flying';
-      B.t = 0; B.scored = false; B.resetAt = 3;
-      B.shots++;
-      $('bShots').textContent = B.shots;
+      B.state = 'flying'; B.t = 0; B.scored = false; B.resetAt = 3;
+      B.shots++; $('bShots').textContent = B.shots;
       sfx.shoot();
     }
-
     function basketStep(h) {
       const prevY = B.pos.y;
       B.pos.addScaledVector(B.vel, h);
       B.vel.y -= B.GRAV * h;
       B.t += h;
       const r = B.R;
-
       // Tablero
-      if (B.vel.z < 0 &&
-          B.pos.z - r < B.BOARD_Z && B.pos.z > B.BOARD_Z - 0.12 &&
+      if (B.vel.z < 0 && B.pos.z - r < B.BOARD_Z && B.pos.z > B.BOARD_Z - 0.12 &&
           Math.abs(B.pos.x - B.hoopX) < B.BOARD_X + r * 0.5 &&
           B.pos.y > B.BOARD_Y0 - r * 0.5 && B.pos.y < B.BOARD_Y1 + r * 0.5) {
-        B.pos.z = B.BOARD_Z + r;
-        B.vel.z = -B.vel.z * 0.6;
+        B.pos.z = B.BOARD_Z + r; B.vel.z = -B.vel.z * 0.6;
       }
-
-      // Aro (colisión esfera vs. anillo)
+      // Aro (esfera vs. anillo)
       const H = B.HOOP;
       const dx = B.pos.x - H.x, dz = B.pos.z - H.z;
       const dh = Math.hypot(dx, dz) || 1e-6;
@@ -998,15 +1267,13 @@
           if (B.t - B.lastRim > 0.15) { sfx.rim(); B.lastRim = B.t; }
         }
       }
-
       // ¿Pasó por el aro de arriba hacia abajo?
       if (!B.scored && prevY > H.y && B.pos.y <= H.y && dh < B.R_HOOP - r * 0.5) {
         B.scored = true;
-        B.hits++;
-        $('bHits').textContent = B.hits;
-        B.vel.x *= 0.3; B.vel.z *= 0.3; B.vel.y *= 0.5;   // la red frena el balón
+        B.hits++; $('bHits').textContent = B.hits;
+        B.vel.x *= 0.3; B.vel.z *= 0.3; B.vel.y *= 0.5;
         B.resetAt = B.t + 1.2;
-        addPoints(10);
+        addPoints(10); duelPoint();
         toast('🏀 ¡CANASTA! +10' + hit());
         sfx.score();
         burst($('hoopRig'), 0, 1.0, -0.5, 26, 0.35);
@@ -1015,38 +1282,31 @@
         registrarInteraccion('Canasta', 'Baloncesto');
         $('hoopFlash').emit('flash');
       }
-
       // Suelo
       if (B.pos.y < r) {
         B.pos.y = r;
-        if (B.vel.y < 0) B.vel.y = -B.vel.y * 0.5;
+        if (B.vel.y < 0) B.vel.y = -B.vel.y * 0.55;
         B.vel.x *= 0.85; B.vel.z *= 0.85;
       }
     }
-
     function updateBasket(dt) {
-      // Aro móvil: empieza a moverse desde la 3ª canasta y cada vez más
       const amp = Math.min(0.3, Math.max(0, (B.hits - 2) * 0.07));
       B.hoopPhase += dt * (1 + B.hits * 0.05);
       B.hoopX = amp * Math.sin(B.hoopPhase);
       B.HOOP.x = B.hoopX;
       $('hoopRig').object3D.position.x = B.hoopX;
-
-      // Medidor de potencia
       if (B.state === 'ready') {
         B.meterPhase += dt * 2.6;
         B.meter = (Math.sin(B.meterPhase) + 1) / 2;
         $('needle').style.left = (B.meter * 100).toFixed(1) + '%';
-        // Balón flotando suavemente mientras espera
         $('bball').object3D.position.set(B.START.x, B.START.y + Math.sin(B.meterPhase * 1.3) * 0.015, B.START.z);
         return;
       }
-      // Física con sub-pasos (evita que el balón atraviese el aro)
-      const steps = Math.ceil(dt / (1 / 240));
-      const h = dt / steps;
+      const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
       for (let i = 0; i < steps; i++) basketStep(h);
-      $('bball').object3D.position.copy(B.pos);
-
+      const ball = $('bball').object3D;
+      ball.position.copy(B.pos);
+      ball.rotation.x -= B.vel.z * dt * 6;
       const out = B.pos.y < -0.3 || Math.abs(B.pos.x) > 2 || B.pos.z > 2 || B.pos.z < -2;
       if (B.t >= B.resetAt || out) {
         if (!B.scored) { toast('😅 ¡Casi!'); sfx.miss(); missed(); }
@@ -1059,74 +1319,61 @@
        ========================================================= */
     function resetSoccerBall() {
       S.state = 'ready';
-      S.pos.copy(S.START);
-      S.vel.set(0, 0, 0);
+      S.pos.copy(S.START); S.vel.set(0, 0, 0);
       S.t = 0; S.result = null; S.resetAt = 99;
       $('sball').object3D.position.copy(S.pos);
       $('sball').object3D.rotation.set(0, 0, 0);
       show($('arrow'), true);
     }
-
     function kick() {
       if (G.mode !== 'soccer' || S.state !== 'ready') return;
       const a = S.aim;
       S.vel.set(-Math.sin(a) * S.SPEED, S.VY, -Math.cos(a) * S.SPEED);
-      S.state = 'flying';
-      S.t = 0; S.result = null; S.resetAt = 3.5;
-      S.shots++;
-      $('sShots').textContent = S.shots;
-      sfx.kick();
+      S.state = 'flying'; S.t = 0; S.result = null; S.resetAt = 3.5;
+      S.shots++; $('sShots').textContent = S.shots;
       show($('arrow'), false);
+      sfx.kick();
     }
-
     function reflect(vel, nx, ny, nz, k) {
       const vn = vel.x * nx + vel.y * ny + vel.z * nz;
       if (vn < 0) { vel.x -= k * vn * nx; vel.y -= k * vn * ny; vel.z -= k * vn * nz; }
     }
-
     function setResult(res) {
       if (S.result) return;
       S.result = res;
       S.resetAt = S.t + 1.5;
       if (res === 'goal') {
-        S.goals++;
-        $('sGoals').textContent = S.goals;
-        addPoints(10);
+        S.goals++; $('sGoals').textContent = S.goals;
+        addPoints(10); duelPoint();
         toast('⚽ ¡GOOOL! +10' + hit());
         sfx.score();
         burst($('soccerGame'), S.pos.x, 0.25, -1.0, 30, 0.4);
         popText($('soccerGame'), 0, 0.55, -0.95, '+10', '#FFD54F');
         registrarInteraccion('Gol', 'Fútbol');
         $('goalFlash').emit('flash');
-        S.keeperSpeed = Math.min(S.keeperSpeed + 0.3, 4.2);   // dificultad progresiva
+        S.keeperSpeed = Math.min(S.keeperSpeed + 0.3, 4.2);
       } else if (res === 'save') {
-        toast('🧤 ¡ATAJADA!');
-        sfx.save(); missed();
+        toast('🧤 ¡ATAJADA!'); sfx.save(); missed();
         registrarInteraccion('Atajada', 'Fútbol');
       } else if (res === 'out') {
-        toast('❌ ¡Afuera!');
-        sfx.miss(); missed();
+        toast('❌ ¡Afuera!'); sfx.miss(); missed();
       }
     }
-
     function soccerStep(h) {
       S.pos.addScaledVector(S.vel, h);
       S.vel.y -= S.GRAV * h;
       S.t += h;
       const r = S.R;
-
-      // Suelo con rebote
       if (S.pos.y < r) {
         S.pos.y = r;
         if (S.vel.y < 0) S.vel.y = -S.vel.y * 0.45;
         S.vel.x *= 0.985; S.vel.z *= 0.985;
       }
-
       // Portero (esfera vs. caja)
       const kx = S.keeperX, ky = S.KEEPER_HALF.y, kz = S.KEEPER_Z, hb = S.KEEPER_HALF;
-      const cx = Math.max(kx - hb.x, Math.min(S.pos.x, kx + hb.x));
-      const cy = Math.max(0, Math.min(S.pos.y, ky + hb.y));
-      const cz = Math.max(kz - hb.z, Math.min(S.pos.z, kz + hb.z));
+      const cx = clamp(S.pos.x, kx - hb.x, kx + hb.x);
+      const cy = clamp(S.pos.y, 0, ky + hb.y);
+      const cz = clamp(S.pos.z, kz - hb.z, kz + hb.z);
       let ex = S.pos.x - cx, ey = S.pos.y - cy, ez = S.pos.z - cz;
       let d = Math.hypot(ex, ey, ez);
       if (d < r) {
@@ -1136,7 +1383,6 @@
         reflect(S.vel, nx, ny, nz, 1.5);
         if (!S.result) setResult('save');
       }
-
       // Postes
       for (const sx of [-S.HALF_W, S.HALF_W]) {
         const px = S.pos.x - sx, pz = S.pos.z - S.GOAL_Z;
@@ -1157,33 +1403,25 @@
           reflect(S.vel, 0, ny, nz, 1.6);
         }
       }
-
       // ¿Cruzó la línea de gol?
       if (!S.result && S.pos.z < S.GOAL_Z - r) {
-        if (Math.abs(S.pos.x) < S.HALF_W - r * 0.3 && S.pos.y < S.H) {
-          setResult('goal');
-          S.vel.multiplyScalar(0.35);
-        } else {
-          setResult('out');
-        }
+        if (Math.abs(S.pos.x) < S.HALF_W - r * 0.3 && S.pos.y < S.H) { setResult('goal'); S.vel.multiplyScalar(0.35); }
+        else setResult('out');
       }
-
       // La red atrapa el balón
       if (S.result === 'goal') {
-        if (S.pos.z < -1.03) { S.pos.z = -1.03; S.vel.z = 0; }
-        S.pos.x = Math.max(-S.HALF_W + r, Math.min(S.HALF_W - r, S.pos.x));
+        if (S.pos.z < -1.05) { S.pos.z = -1.05; S.vel.z = 0; }
+        S.pos.x = clamp(S.pos.x, -S.HALF_W + r, S.HALF_W - r);
         if (S.pos.y > S.H - r) { S.pos.y = S.H - r; S.vel.y = Math.min(S.vel.y, 0); }
       }
     }
-
     function updateSoccer(dt) {
-      // Portero: va de lado a lado
       S.keeperPhase += dt * S.keeperSpeed;
       S.keeperX = 0.32 * Math.sin(S.keeperPhase);
-      $('keeper').object3D.position.x = S.keeperX;
-
+      const kp = $('keeper').object3D;
+      kp.position.x = S.keeperX;
+      kp.position.y = Math.abs(Math.sin(S.keeperPhase * 2)) * 0.02;   // pequeños saltitos
       if (S.state === 'ready') {
-        // Flecha que oscila ±25°
         S.aimPhase += dt * 2.2;
         S.aim = Math.sin(S.aimPhase) * 0.44;
         const arrow = $('arrow').object3D;
@@ -1191,15 +1429,12 @@
         arrow.rotation.y = S.aim;
         return;
       }
-
-      const steps = Math.ceil(dt / (1 / 240));
-      const h = dt / steps;
+      const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
       for (let i = 0; i < steps; i++) soccerStep(h);
       const ball = $('sball').object3D;
       ball.position.copy(S.pos);
-      ball.rotation.x -= S.vel.z * dt * 12;   // giro visual
+      ball.rotation.x -= S.vel.z * dt * 12;
       ball.rotation.z += S.vel.x * dt * 12;
-
       const out = Math.abs(S.pos.x) > 1.3 || S.pos.z > 1.3 || S.pos.z < -1.6;
       if (out && !S.result) setResult('out');
       if (S.t >= S.resetAt) {
@@ -1209,26 +1444,384 @@
     }
 
     /* =========================================================
-       GAME LOOP (componente A-Frame -> 60 FPS con el render)
+       PING-PONG
+       (solo: contra la máquina · online: el anfitrión calcula la
+        física y el invitado ve la mesa girada 180°)
        ========================================================= */
-    AFRAME.registerComponent('game-manager', {
-      tick: function (time, delta) {
-        const dt = Math.min((delta || 16) / 1000, 0.05); // evita saltos grandes
-        if (G.mode === 'basket') updateBasket(dt);
-        else if (G.mode === 'soccer') updateSoccer(dt);
+    function pingRivalName() { return P.online ? NET.rivalName : 'Máquina'; }
+    function updatePingHud() {
+      $('pMe').textContent = P.me;
+      $('pRival').textContent = P.rival;
+      $('pRivalName').textContent = pingRivalName();
+    }
+    function resetPingMatch() {
+      P.me = 0; P.rival = 0; P.server = 1; P.over = false;
+      P.px = P.pxTarget = 0; P.rx = 0;
+      updatePingHud();
+      prepServe();
+    }
+    function prepServe() {
+      P.state = 'serve';
+      P.serveAt = P.t + 1.1;
+      P.vel.set(0, 0, 0);
+    }
+    function doServe() {
+      const dir = P.server === 1 ? -1 : 1;
+      P.vel.set(rnd(-0.15, 0.15), 0.35, dir * 1.0);
+      P.state = 'play';
+      sfx.pong();
+    }
+    function tryHit(paddleX, paddleVel, dir) {
+      if (Math.abs(P.pos.x - paddleX) < P.PADDLE_HALF + P.R && P.pos.y < P.T + 0.42) {
+        const speed = Math.min(2.2, Math.abs(P.vel.z) * 1.05 + 0.03);
+        P.vel.z = dir * speed;
+        P.vel.y = 0.55;
+        P.vel.x = clamp((P.pos.x - paddleX) * 3 + paddleVel * 0.25, -0.8, 0.8);
+        P.pos.z = dir < 0 ? P.PZ - 0.002 : -P.PZ + 0.002;
+        sfx.pong();
+        if (dir < 0) P.aiErr = rnd(-0.09, 0.09);
+        return true;
       }
-    });
+      return false;
+    }
+    function pingStep(h) {
+      const prevZ = P.pos.z;
+      P.pos.addScaledVector(P.vel, h);
+      P.vel.y -= P.GRAV * h;
+      // Rebote en la mesa
+      if (P.vel.y < 0 && P.pos.y < P.T + P.R && Math.abs(P.pos.x) < P.HALF_X && Math.abs(P.pos.z) < P.HALF_Z) {
+        P.pos.y = P.T + P.R; P.vel.y = P.BOUNCE; sfx.bounce();
+      }
+      // Paredes invisibles a los lados (arcade)
+      if (Math.abs(P.pos.x) > 0.46) { P.pos.x = Math.sign(P.pos.x) * 0.46; P.vel.x *= -0.8; }
+      // Piso
+      if (P.pos.y < P.R) { P.pos.y = P.R; P.vel.y = Math.abs(P.vel.y) * 0.5; }
+      // Raquetas
+      if (P.vel.z > 0 && prevZ < P.PZ && P.pos.z >= P.PZ) tryHit(P.px, P.pVel, -1);
+      if (P.vel.z < 0 && prevZ > -P.PZ && P.pos.z <= -P.PZ) tryHit(P.rx, P.rVel, 1);
+      // Puntos
+      if (P.pos.z > P.PZ + 0.25) pingPoint(-1);
+      else if (P.pos.z < -P.PZ - 0.25) pingPoint(1);
+    }
+    function pingPoint(side) {
+      if (P.state !== 'play') return;
+      P.state = 'point';
+      if (side === 1) P.me++; else P.rival++;
+      // En online el anfitrión también avisa al invitado
+      announcePingPoint(side === 1);
+      P.server = ((P.me + P.rival) % 4 < 2) ? 1 : -1;
+      updatePingHud();
+      const winner = P.me >= P.TO_WIN ? 1 : (P.rival >= P.TO_WIN ? -1 : 0);
+      if (winner) {
+        P.over = true;
+        announcePingWin(winner === 1);
+        if (P.online) netSend({ t: 'ppwin', hostWon: winner === 1 });
+        setTimeout(() => { if (G.mode === 'ping') resetPingMatch(); }, 3000);
+      } else {
+        setTimeout(() => { if (G.mode === 'ping') prepServe(); }, 900);
+      }
+    }
+    function announcePingPoint(mine) {
+      if (mine) {
+        addPoints(10);
+        toast('🏓 ¡Punto! +10' + hit());
+        sfx.score();
+        burst($('pingGame'), P.pos.x * 0.5, 0.5, -0.6, 18, 0.3);
+        registrarInteraccion('Punto ping-pong', 'Ping-Pong');
+      } else {
+        toast('😬 Punto de ' + pingRivalName());
+        sfx.miss(); missed();
+      }
+    }
+    function announcePingWin(iWon) {
+      if (iWon) {
+        addPoints(30);
+        setTimeout(() => toast('🏆 ¡Ganaste el partido! +30'), 900);
+        burst($('pingGame'), 0, 0.6, 0.4, 40, 0.5);
+        registrarInteraccion('Partido ganado', 'Ping-Pong');
+      } else {
+        setTimeout(() => toast('😢 Ganó ' + pingRivalName()), 900);
+      }
+    }
+    function updatePing(dt) {
+      P.t += dt;
+      // Mi raqueta sigue al dedo
+      const prev = P.px;
+      P.px += (P.pxTarget - P.px) * Math.min(1, dt * 16);
+      P.pVel = (P.px - prev) / Math.max(dt, 1e-3);
 
+      const guest = P.online && !NET.isHost;
+      if (guest) {
+        // Invitado: solo mueve su raqueta y dibuja lo que manda el anfitrión
+        if (P.t - P.lastSend > 0.033) { netSend({ t: 'ppx', x: +P.px.toFixed(3) }); P.lastSend = P.t; }
+      } else {
+        // Rival: la máquina, o la raqueta del amigo (online)
+        const prevR = P.rx;
+        if (P.online) {
+          P.rx += (P.rxNet - P.rx) * Math.min(1, dt * 20);
+        } else {
+          const target = P.vel.z < 0 && P.state === 'play' ? P.pos.x + P.aiErr : 0;
+          const maxV = 0.7 + P.me * 0.05;
+          P.rx += clamp(target - P.rx, -maxV * dt, maxV * dt);
+        }
+        P.rVel = (P.rx - prevR) / Math.max(dt, 1e-3);
+
+        if (P.state === 'serve') {
+          const x = P.server === 1 ? P.px : P.rx;
+          P.pos.set(x, P.T + 0.12, P.server === 1 ? P.PZ - 0.06 : -P.PZ + 0.06);
+          if (P.t >= P.serveAt && !P.over) doServe();
+        } else if (P.state === 'play' || P.state === 'point') {
+          const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
+          for (let i = 0; i < steps; i++) pingStep(h);
+        }
+        if (P.online && P.t - P.lastSend > 0.033) {
+          netSend({ t: 'pp', b: [+P.pos.x.toFixed(3), +P.pos.y.toFixed(3), +P.pos.z.toFixed(3)], hx: +P.px.toFixed(3), me: P.me, rv: P.rival });
+          P.lastSend = P.t;
+        }
+      }
+      $('paddleP').object3D.position.x = P.px;
+      $('paddleP').object3D.rotation.z = clamp(-P.pVel * 0.15, -0.5, 0.5);
+      $('paddleR').object3D.position.x = P.rx;
+      $('pball').object3D.position.copy(P.pos);
+    }
+    // El invitado recibe el estado del anfitrión (mesa girada 180°)
+    function applyPingFromHost(d) {
+      if (G.mode !== 'ping') return;
+      P.pos.set(-d.b[0], d.b[1], -d.b[2]);
+      P.rx = -d.hx;
+      const myNew = d.rv, rivalNew = d.me;
+      if (myNew > P.me) announcePingPoint(true);
+      if (rivalNew > P.rival) announcePingPoint(false);
+      P.me = myNew; P.rival = rivalNew;
+      updatePingHud();
+    }
 
     /* =========================================================
-       CÁMARA DEL CELULAR DE FONDO (sin marcador)
+       DUELO ONLINE (Baloncesto y Fútbol): 60 s, gana quien anote más
+       ========================================================= */
+    const DUEL = { on: false, game: null, end: 0, mine: 0, theirs: 0 };
+    function startDuel(game) {
+      DUEL.on = true; DUEL.game = game; DUEL.mine = 0; DUEL.theirs = 0;
+      DUEL.end = performance.now() + 60000;
+      $('duelPill').classList.remove('hidden');
+      updateDuelPill();
+      setTimeout(() => toast('⚔️ Duelo de 60 s'), 1300);
+    }
+    function duelPoint() {
+      if (!DUEL.on) return;
+      DUEL.mine += 10;
+      netSend({ t: 'duel', s: DUEL.mine });
+      updateDuelPill();
+    }
+    function updateDuelPill() {
+      const left = Math.max(0, Math.ceil((DUEL.end - performance.now()) / 1000));
+      $('duelTime').textContent = `${left}s · Tú ${DUEL.mine} – ${DUEL.theirs}`;
+    }
+    function endDuel(silent) {
+      if (!DUEL.on) return;
+      DUEL.on = false;
+      $('duelPill').classList.add('hidden');
+      if (silent) return;
+      if (DUEL.mine > DUEL.theirs) { toast('🏆 ¡Ganaste el duelo!'); addPoints(30); sfx.score(); }
+      else if (DUEL.mine < DUEL.theirs) { toast('😢 Ganó ' + NET.rivalName); sfx.miss(); }
+      else toast('🤝 ¡Empate!');
+      registrarInteraccion('Fin de duelo', `${DUEL.game}: ${DUEL.mine}-${DUEL.theirs}`);
+      setTimeout(() => backToMenu(true), 2600);
+    }
+    function updateDuel() {
+      if (!DUEL.on) return;
+      updateDuelPill();
+      if (performance.now() >= DUEL.end) endDuel(false);
+    }
+
+    /* =========================================================
+       MULTIJUGADOR ONLINE (PeerJS: conexión directa entre celulares)
+       - Partida rápida: busca a otra persona que también esté buscando.
+       - Sala con código: crea una sala de 4 letras y la compartes.
+       ========================================================= */
+    const NET = { peer: null, conn: null, isHost: false, rivalName: 'Rival', rivalScore: 0, gotHello: false, lastSeen: 0, beat: null };
+    const NET_PREFIX = 'cofre-portales-v1-';
+    const PEER_OPTS = { debug: 0 };
+
+    function online() { return !!(NET.conn && NET.conn.open); }
+    function netSend(m) { if (online()) { try { NET.conn.send(m); } catch (e) {} } }
+    function myName() { return ($('playerName').value || '').trim().slice(0, 12) || 'Jugador'; }
+    function setNetPill(txt) { const el = $('netPill'); el.textContent = txt; el.classList.toggle('hidden', !txt); }
+    function peerAvailable() {
+      if (typeof Peer === 'undefined') { toast('🌐 Online no disponible aquí'); setNetPill(''); return false; }
+      return true;
+    }
+
+    // Conexión aceptada (los dos lados usan esto)
+    function attachConn(conn, sendHello) {
+      NET.conn = conn;
+      NET.gotHello = false;
+      NET.lastSeen = performance.now();
+      conn.on('data', onNetData);
+      conn.on('close', onNetClose);
+      conn.on('error', onNetClose);
+      if (sendHello) netSend({ t: 'hello', name: myName(), score: G.score });
+      // Latido: si el otro celular deja de responder 8 s, se da por desconectado
+      clearInterval(NET.beat);
+      NET.beat = setInterval(() => {
+        if (!NET.conn) { clearInterval(NET.beat); return; }
+        netSend({ t: 'beat' });
+        if (performance.now() - NET.lastSeen > 8000) onNetClose();
+      }, 2000);
+    }
+    // El anfitrión espera conexiones; si ya tiene rival, responde "ocupado"
+    function hostListen(p) {
+      p.on('connection', (c) => {
+        c.on('open', () => {
+          if (online()) { c.send({ t: 'busy' }); setTimeout(() => c.close(), 400); return; }
+          attachConn(c, true);
+        });
+      });
+    }
+    // Intenta ser anfitrión con un ID fijo. Resuelve 'host' | 'taken' | 'fail'
+    function claimId(id) {
+      return new Promise((resolve) => {
+        let done = false;
+        const p = new Peer(id, PEER_OPTS);
+        const fin = (r) => { if (done) return; done = true; if (r !== 'host') p.destroy(); resolve(r); };
+        p.on('open', () => { NET.peer = p; NET.isHost = true; hostListen(p); fin('host'); });
+        p.on('error', (e) => { if (!done) fin(e.type === 'unavailable-id' ? 'taken' : 'fail'); });
+        setTimeout(() => fin('fail'), 9000);
+      });
+    }
+    // Intenta unirse a un anfitrión. Resuelve true si conectó
+    function joinId(id) {
+      return new Promise((resolve) => {
+        let done = false;
+        const p = new Peer(PEER_OPTS);
+        const fin = (ok) => { if (done) return; done = true; if (!ok) p.destroy(); resolve(ok); };
+        p.on('open', () => {
+          const c = p.connect(id, { reliable: true });
+          c.on('data', function first(d) {
+            if (d && d.t === 'busy') { fin(false); return; }
+            if (d && d.t === 'hello' && !done) {
+              c.off('data', first);
+              NET.peer = p; NET.isHost = false;
+              attachConn(c, false);
+              onNetData(d);
+              netSend({ t: 'hello', name: myName(), score: G.score });   // respondo el saludo
+              fin(true);
+            }
+          });
+        });
+        p.on('error', () => fin(false));
+        setTimeout(() => fin(false), 9000);
+      });
+    }
+
+    // Partida rápida: recorre "salas públicas" 1..6
+    async function quickMatch() {
+      if (!peerAvailable()) return;
+      setNetPill('🌐 Buscando rival…');
+      for (let i = 1; i <= 6; i++) {
+        const id = NET_PREFIX + 'lobby-' + i;
+        const r = await claimId(id);
+        if (r === 'host') { setNetPill('🌐 Esperando rival…'); setStatus('🌐 Buscando rival… mientras tanto puedes jugar solo'); return; }
+        if (r === 'taken' && await joinId(id)) return;
+      }
+      setNetPill('🌐 Sin conexión');
+      toast('🌐 No se pudo conectar');
+    }
+    function randomCode() {
+      const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      let s = ''; for (let i = 0; i < 4; i++) s += L[Math.floor(Math.random() * L.length)];
+      return s;
+    }
+    async function createRoom() {
+      if (!peerAvailable()) return;
+      setNetPill('🔑 Creando sala…');
+      for (let i = 0; i < 4; i++) {
+        const code = randomCode();
+        const r = await claimId(NET_PREFIX + 'sala-' + code);
+        if (r === 'host') {
+          setNetPill('🔑 Sala ' + code);
+          setStatus(`🔑 Tu sala es ${code} — dile a tu amigo que la escriba en "Unirme"`, true);
+          return;
+        }
+      }
+      setNetPill('🌐 Sin conexión');
+      toast('🌐 No se pudo crear la sala');
+    }
+    async function joinRoom(code) {
+      if (!peerAvailable()) return;
+      setNetPill('🔑 Uniéndome a ' + code + '…');
+      const ok = await joinId(NET_PREFIX + 'sala-' + code);
+      if (!ok) { setNetPill(''); toast('🔑 No encontré la sala ' + code); }
+    }
+
+    function onNetData(d) {
+      if (!d || !d.t) return;
+      NET.lastSeen = performance.now();
+      switch (d.t) {
+        case 'hello':
+          if (NET.gotHello) { NET.rivalName = String(d.name || 'Rival').slice(0, 12); $('rivalName').textContent = NET.rivalName; break; }
+          NET.gotHello = true;
+          NET.rivalName = String(d.name || 'Rival').slice(0, 12);
+          NET.rivalScore = d.score || 0;
+          $('rivalName').textContent = NET.rivalName;
+          $('rivalScore').textContent = NET.rivalScore;
+          $('rivalPill').classList.remove('hidden');
+          setNetPill(NET.isHost ? '🌐 Online · anfitrión' : '🌐 Online');
+          setStatus(`👤 ${NET.rivalName} está jugando contigo. Elijan un portal: el que toque primero decide.`);
+          toast('👤 ¡' + NET.rivalName + ' se unió!');
+          sfx.join();
+          registrarInteraccion('Rival conectado', NET.rivalName);
+          // El anfitrión manda dónde está para que los dos queden juntos
+          if (NET.isHost) {
+            if (GAMES[G.mode]) netSend({ t: 'game', g: G.mode });
+            else { if (G.mode === 'menu') netSend({ t: 'open' }); netSend({ t: 'menu' }); }
+          }
+          break;
+        case 'score':
+          NET.rivalScore = d.s; $('rivalScore').textContent = d.s; break;
+        case 'open':
+          if (G.mode === 'chest') openChest(true); break;
+        case 'game':
+          if (G.mode !== d.g) goGame(d.g, true);
+          else if (d.g === 'ping') { P.online = true; resetPingMatch(); }
+          else if (!DUEL.on) startDuel(d.g);
+          break;
+        case 'menu':
+          if (GAMES[G.mode]) backToMenu(true); break;
+        case 'duel':
+          DUEL.theirs = d.s; updateDuelPill(); break;
+        case 'pp':
+          if (!NET.isHost) applyPingFromHost(d); break;
+        case 'ppx':
+          if (NET.isHost) P.rxNet = -d.x; break;
+        case 'ppwin':
+          if (!NET.isHost && G.mode === 'ping') {
+            announcePingWin(!d.hostWon);
+            setTimeout(() => { if (G.mode === 'ping') resetPingMatch(); }, 3000);
+          }
+          break;
+      }
+    }
+    function onNetClose() {
+      if (!NET.conn) return;
+      try { NET.conn.close(); } catch (e) {}
+      NET.conn = null;
+      clearInterval(NET.beat);
+      $('rivalPill').classList.add('hidden');
+      setNetPill('🌐 Desconectado');
+      toast('👋 ' + NET.rivalName + ' se desconectó');
+      endDuel(true);
+      if (G.mode === 'ping') { P.online = false; resetPingMatch(); }
+      registrarInteraccion('Rival desconectado', NET.rivalName);
+    }
+
+    /* =========================================================
+       CÁMARA, GIROSCOPIO, CENTRAR Y PANEL
        ========================================================= */
     async function startCameraFeed() {
       const video = $('camfeed');
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }, audio: false
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
         video.srcObject = stream;
         await video.play();
         document.body.classList.add('cam-on');
@@ -1238,12 +1831,7 @@
         return false;
       }
     }
-
-    /* =========================================================
-       GIROSCOPIO: apuntar moviendo el celular (o tocar, si no hay)
-       ========================================================= */
     async function enableGyro() {
-      // iPhone pide permiso para leer el movimiento del celular
       try {
         if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
           const r = await DeviceOrientationEvent.requestPermission();
@@ -1260,30 +1848,17 @@
         setTimeout(() => { if (!done) { done = true; window.removeEventListener('deviceorientation', onOri); resolve(false); } }, 1500);
       });
     }
-
     function setAimMode(gyro) {
       G.gyro = gyro;
       const cur = $('cursor-raycast');
-      if (gyro) {
-        // a-cursor en el centro: se apunta moviendo el celular y se toca la pantalla
-        cur.setAttribute('cursor', 'rayOrigin: entity; fuse: false');
-        cur.setAttribute('visible', true);
-      } else {
-        // sin giroscopio (PC / artefacto): el rayo sale desde donde se toca o hace clic
-        cur.setAttribute('cursor', 'rayOrigin: mouse; fuse: false');
-        cur.setAttribute('visible', false);
-      }
+      cur.setAttribute('cursor', gyro ? 'rayOrigin: entity; fuse: false' : 'rayOrigin: mouse; fuse: false');
+      cur.setAttribute('visible', gyro);
       refreshRaycaster();
       refreshStatus();
     }
-
-    // Horizontal: lente más cerrado para que el juego se vea más grande
     function fitFov() {
-      const landscape = window.innerWidth > window.innerHeight;
-      $('cam').setAttribute('camera', 'fov', landscape ? 60 : 75);
+      $('cam').setAttribute('camera', 'fov', window.innerWidth > window.innerHeight ? 60 : 75);
     }
-
-    // Intenta pantalla completa y bloquear en horizontal (Android). En iPhone se gira a mano.
     function goLandscape() {
       try {
         const de = document.documentElement;
@@ -1295,47 +1870,44 @@
       } catch (e) {}
     }
 
-    // Pone el juego justo delante de hacia donde mira el celular
-    // Centrar: gira el juego hacia donde mira el celular (izq/der)
-    // y lo sube o baja para que quede a la altura de la mirada.
+    // Centrar: pone el juego delante de hacia donde mira el celular y
+    // siempre visto un poco desde arriba (como si grabaras la cancha).
     let yOffset = 0;
     function focusEl() {
       if (G.mode === 'basket') return $('basketFocus');
       if (G.mode === 'soccer') return $('soccerFocus');
+      if (G.mode === 'ping') return $('pingFocus');
       return $('chestFocus');
     }
     function recenter() {
-      const cam = $('cam').object3D;
-      const anchor = $('anchor').object3D;
+      const cam = $('cam').object3D, anchor = $('anchor').object3D;
       const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
+      const minPitch = GAMES[G.mode] ? -0.5 : -0.3;      // ángulo mínimo "desde arriba"
+      const theta = Math.min(e.x, minPitch);
+      anchor.rotation.order = 'YXZ';
       anchor.rotation.set(0, e.y, 0);
       anchor.updateMatrixWorld(true);
-      const f = focusEl();
-      if (!f) return;
       const v = new THREE.Vector3();
-      f.object3D.getWorldPosition(v);
-      anchor.worldToLocal(v);                       // posición del juego respecto al anchor
-      const camY = cam.position.y;                  // altura de los ojos (1.6 m)
+      focusEl().object3D.getWorldPosition(v);
+      anchor.worldToLocal(v);
       const dist = Math.max(0.5, -v.z);
-      const wantY = camY + dist * Math.tan(e.x);    // altura a la que mira el celular
-      yOffset = Math.max(-3, Math.min(3, yOffset + (wantY - v.y)));
+      const wantY = dist * Math.tan(theta);
+      yOffset = clamp(yOffset + (wantY - v.y), -4, 4);
       placeWorld();
+      // Gira todo alrededor de los ojos para que quede en el centro de la pantalla
+      anchor.rotation.set(e.x - theta, e.y, 0);
     }
     function placeWorld() {
-      $('world').object3D.position.set(0, 0.45 + yOffset, -PREFS.dist);
+      $('world').object3D.position.set(0, -1.15 + yOffset, -PREFS.dist);
     }
 
-    /* =========================================================
-       PANEL DE CONTROLES 2D (modifica la escena en tiempo real)
-       ========================================================= */
-    const PREFS = { size: 2, dist: 3, color: '#FF7A00' };
-
+    const PREFS = { size: 2, dist: 3, color: '#D4651F' };
     function applyPrefs() {
       const w = $('world');
       w.object3D.scale.set(PREFS.size, PREFS.size, PREFS.size);
       placeWorld();
-      $('bballSkin').setAttribute('color', PREFS.color);
-      $('sballSkin').setAttribute('color', PREFS.color === '#FF7A00' ? '#FFFFFF' : PREFS.color);
+      $('bballSkin').setAttribute('ptex', 'color', PREFS.color);
+      $('sballSkin').setAttribute('ptex', 'color', PREFS.color === '#D4651F' ? '' : PREFS.color);
       $('sizeVal').textContent = PREFS.size.toFixed(1) + 'x';
       $('distVal').textContent = PREFS.dist.toFixed(1) + ' m';
       $('sizeRange').value = PREFS.size;
@@ -1345,24 +1917,38 @@
     }
 
     /* =========================================================
+       GAME LOOP (componente A-Frame -> 60 FPS con el render)
+       ========================================================= */
+    AFRAME.registerComponent('game-manager', {
+      tick: function (time, delta) {
+        const dt = Math.min((delta || 16) / 1000, 0.05);
+        if (G.mode === 'basket') updateBasket(dt);
+        else if (G.mode === 'soccer') updateSoccer(dt);
+        else if (G.mode === 'ping') updatePing(dt);
+        updateDuel();
+      }
+    });
+
+    /* =========================================================
        EVENTOS
        ========================================================= */
     window.addEventListener('DOMContentLoaded', () => {
       const scene = $('scene');
 
-      // Récord y preferencias guardadas
       try { G.record = parseInt(localStorage.getItem('arCofreRecord') || '0', 10) || 0; } catch (e) {}
-      try { Object.assign(PREFS, JSON.parse(localStorage.getItem('arCofrePrefs') || '{}')); } catch (e) {}
+      try { const p = JSON.parse(localStorage.getItem('arCofrePrefs') || '{}'); if (p.color && !/^#/.test(p.color)) delete p.color; Object.assign(PREFS, p); } catch (e) {}
+      try { $('playerName').value = localStorage.getItem('arCofreNombre') || ''; } catch (e) {}
       $('record').textContent = G.record;
       const ready = () => { applyPrefs(); fitFov(); makeHoloParticles(); };
       if (scene.hasLoaded) ready(); else scene.addEventListener('loaded', ready, { once: true });
 
-      // JUGAR: cámara de fondo + giroscopio
-      $('btnStart').addEventListener('click', async () => {
+      // Empezar (solo / online). Todo se pide dentro del toque (iPhone lo exige)
+      async function begin(netAction) {
+        try { localStorage.setItem('arCofreNombre', myName()); } catch (e) {}
         $('start').classList.add('hidden');
         setStatus('📷 Abriendo cámara…', true);
         sfxInit(); sfx.tap();
-        const gyroPromise = enableGyro();          // se pide dentro del toque (iPhone lo exige)
+        const gyroPromise = enableGyro();
         goLandscape();
         const camOk = await startCameraFeed();
         const gyro = await gyroPromise;
@@ -1371,28 +1957,33 @@
         setAimMode(gyro);
         setTimeout(recenter, 300);
         if (!camOk) toast('📷 Sin cámara: modo pantalla');
-        else if (gyro) setTimeout(() => setStatus('💡 Si el juego se mueve o se pierde, pulsa 🎯 Centrar'), 4000);
+        else if (gyro) setTimeout(() => { if (!online()) setStatus('💡 Si el juego se mueve o se pierde, pulsa 🎯 Centrar'); }, 4500);
+        if (netAction) netAction();
+      }
+      $('btnSolo').addEventListener('click', () => begin(null));
+      $('btnQuick').addEventListener('click', () => begin(quickMatch));
+      $('btnRoomToggle').addEventListener('click', () => $('roomBox').classList.toggle('hidden'));
+      $('btnCreateRoom').addEventListener('click', () => begin(createRoom));
+      $('btnJoinRoom').addEventListener('click', () => {
+        const code = ($('roomCode').value || '').trim().toUpperCase();
+        if (!/^[A-Z]{4}$/.test(code)) { $('roomCode').focus(); toast('🔑 Escribe el código de 4 letras'); return; }
+        begin(() => joinRoom(code));
       });
 
       // Toques sobre objetos 3D (a-cursor + raycaster)
-      $('chestHit').addEventListener('click', openChest);
+      $('chestHit').addEventListener('click', () => openChest(false));
       document.querySelectorAll('.portal-hit').forEach(el =>
-        el.addEventListener('click', () => {
-          if (el.dataset.game === 'basket') startBasket(); else startSoccer();
-        }));
+        el.addEventListener('click', () => { if (G.mode === 'menu') goGame(el.dataset.game, false); }));
       $('sballHit').addEventListener('click', kick);
 
       // Botones HTML
-      $('btnMenu').addEventListener('click', () => { backToMenu(); setTimeout(recenter, 50); });
+      $('btnMenu').addEventListener('click', () => backToMenu(false));
       $('btnCenter').addEventListener('click', () => { recenter(); sfx.tap(); toast('🎯 Centrado'); });
       $('btnSound').addEventListener('click', () => {
-        sfxInit();
-        SFX.on = !SFX.on;
+        sfxInit(); SFX.on = !SFX.on;
         $('btnSound').textContent = SFX.on ? '🔊' : '🔇';
         if (SFX.on) sfx.tap();
       });
-      window.addEventListener('resize', fitFov);
-      window.addEventListener('orientationchange', () => setTimeout(() => { fitFov(); recenter(); }, 500));
       $('btnPanel').addEventListener('click', () => $('panel').classList.toggle('hidden'));
       $('btnClosePanel').addEventListener('click', () => $('panel').classList.add('hidden'));
       $('sizeRange').addEventListener('input', (e) => { PREFS.size = parseFloat(e.target.value); applyPrefs(); });
@@ -1400,40 +1991,43 @@
       document.querySelectorAll('.swatch').forEach(s =>
         s.addEventListener('click', () => { PREFS.color = s.dataset.color; applyPrefs(); registrarInteraccion('Cambiar color', PREFS.color); }));
       $('btnReset').addEventListener('click', () => {
-        try {
-          localStorage.removeItem('arCofreRecord');
-          localStorage.removeItem('arCofreInteracciones');
-        } catch (e) {}
+        try { localStorage.removeItem('arCofreRecord'); localStorage.removeItem('arCofreInteracciones'); } catch (e) {}
         G.record = 0; G.score = 0;
         $('record').textContent = 0; $('score').textContent = 0;
         B.shots = B.hits = S.shots = S.goals = 0;
         ['bShots', 'bHits', 'sShots', 'sGoals'].forEach(id => $(id).textContent = 0);
         toast('🧹 Estadísticas borradas');
       });
+      $('btnShoot').addEventListener('click', () => shootBasket(0.75 + B.meter * 0.5, 0));
 
-      $('btnShoot').addEventListener('click', () => {
-        const p = 0.75 + B.meter * 0.5;   // zona verde (≈0.5) = tiro perfecto
-        shootBasket(p, 0);
-      });
-
-      // Deslizar hacia arriba para lanzar (baloncesto)
+      // Gestos: deslizar para lanzar (baloncesto) y mover la raqueta (ping-pong)
       let sw = null;
+      const paddleFromX = (x) => { P.pxTarget = clamp((x / window.innerWidth - 0.5) * 1.2, -0.46, 0.46); };
       window.addEventListener('pointerdown', (e) => {
-        if (G.mode !== 'basket' || e.target.closest('.ui')) return;
-        sw = { x: e.clientX, y: e.clientY };
+        if (e.target.closest('.ui')) return;
+        if (G.mode === 'basket') sw = { x: e.clientX, y: e.clientY };
+        if (G.mode === 'ping') paddleFromX(e.clientX);
+      });
+      window.addEventListener('pointermove', (e) => {
+        if (G.mode === 'ping' && !e.target.closest('.ui')) paddleFromX(e.clientX);
       });
       window.addEventListener('pointerup', (e) => {
         if (!sw) return;
-        const dx = e.clientX - sw.x;
-        const dy = sw.y - e.clientY;   // positivo = hacia arriba
+        const dx = e.clientX - sw.x, dy = sw.y - e.clientY;
         sw = null;
         if (dy < 40) return;
         const norm = Math.min(dy / (window.innerHeight * 0.5), 1);
-        const p = 0.75 + norm * 0.5;   // deslizar ~1/4 de pantalla = tiro perfecto
-        const lat = (dx / window.innerWidth) * 0.8;
-        shootBasket(p, lat);
+        shootBasket(0.75 + norm * 0.5, (dx / window.innerWidth) * 0.8);
       });
       window.addEventListener('pointercancel', () => { sw = null; });
+      window.addEventListener('keydown', (e) => {
+        if (G.mode !== 'ping') return;
+        if (e.key === 'ArrowLeft') P.pxTarget = clamp(P.pxTarget - 0.08, -0.46, 0.46);
+        if (e.key === 'ArrowRight') P.pxTarget = clamp(P.pxTarget + 0.08, -0.46, 0.46);
+      });
+
+      window.addEventListener('resize', fitFov);
+      window.addEventListener('orientationchange', () => setTimeout(() => { fitFov(); recenter(); }, 500));
     });
   </script>
 </body>
