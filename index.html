@@ -32,6 +32,8 @@
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <!-- PeerJS: conexión directa entre dos celulares para el modo online -->
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- Generador de códigos QR (para abrir la tarjeta en otro celular) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 
   <style>
     :root {
@@ -189,7 +191,8 @@
     /* Horizontal: inicio en dos columnas, todo más compacto */
     @media (orientation: landscape) {
       #status { top: calc(var(--st) + 4px); max-width: 38vw; font-size: clamp(11px, 3.4vmin, 15px); }
-      #start { flex-wrap: nowrap; }
+      #start { flex-wrap: nowrap; align-items: flex-start; padding-top: calc(var(--st) + 14px); }
+      #start .col { flex-shrink: 0; }
       #start .col { max-width: 44vw; }
       #start h1 { font-size: clamp(26px, 10vmin, 52px); }
       .logo { font-size: clamp(36px, 12vmin, 72px); }
@@ -241,7 +244,8 @@
         align-items: center; max-width: 94vw; width: 94vw;
       }
       #basketControls { width: 94vw; }
-      #start { flex-direction: column; justify-content: flex-start; padding-top: calc(var(--st) + 24px); }
+      #start { flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; padding-top: calc(var(--st) + 24px); padding-bottom: 40px; }
+      #start .col { width: 100%; max-width: 360px; flex-shrink: 0; }
     }
 
     /* ---------- Elegir modo (con / sin tarjeta) ---------- */
@@ -258,6 +262,10 @@
     .cm-row { font-weight: 700; }
     #markerCm { width: 70px; padding: 6px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.4); background: rgba(255,255,255,.12); color: #fff; font-size: 15px; text-align: center; font-family: inherit; }
     body.marker-mode, html:has(body.marker-mode) { background: transparent !important; }
+
+    .card-row { display: flex; gap: 10px; align-items: center; justify-content: center; }
+    .qr-box { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 130px; font-size: 11px; text-align: center; }
+    #cardQr svg { width: 110px; height: 110px; background: #fff; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -281,7 +289,11 @@
       </div>
       <div id="markerInfo" class="marker-info hidden">
         <p>Imprime esta tarjeta (o ábrela en otro celular) y ponla <b>acostada en el piso</b>. El juego sale encima de ella.</p>
-        <a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener"><img class="marker-thumb" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" alt="Tarjeta marcador" /></a>
+        <div class="card-row">
+          <a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener"><img class="marker-thumb" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" alt="Tarjeta marcador" /></a>
+          <div class="qr-box"><div id="cardQr"></div><span>Escanéalo con otro celular para abrir la tarjeta</span></div>
+        </div>
+        <a class="linkbtn" href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener">🔍 Abrir la tarjeta en grande (para imprimir)</a>
         <label class="cm-row">Ancho de la tarjeta: <input id="markerCm" type="number" min="4" max="80" step="0.5" value="20" /> cm</label>
         <p class="small">Mídela con una regla: así todo sale de tamaño real.</p>
       </div>
@@ -1943,8 +1955,8 @@
       // La cámara trasera ve ~68° en su lado largo. Con el video "cover":
       const a = window.innerWidth / window.innerHeight;
       const half = THREE.MathUtils.degToRad(34);
-      let fov = a > 1 ? 2 * Math.atan(Math.tan(half) / a) : 68;
-      fov = THREE.MathUtils.radToDeg(fov);
+      // Horizontal: el lado largo (68°) va de lado a lado. Vertical: va de arriba a abajo.
+      let fov = a > 1 ? THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(half) / a)) : 68;
       // Sin cámara o sin giroscopio no puedes mirar alrededor: lente más amplio
       if (!document.body.classList.contains('cam-on') || !G.gyro) fov = a > 1 ? 55 : 70;
       if (G.place === 'marker') return;          // con tarjeta, MindAR pone el lente exacto
@@ -2005,13 +2017,25 @@
         updateShadows(sc);
       }
     }
+    // Hacia dónde mira el celular (en el plano del piso). Se suma el "frente" de la
+    // cámara y el borde de arriba de la pantalla: así no se voltea 180° cuando
+    // apuntas casi derecho al piso (ahí el ángulo normal se vuelve inestable).
+    const _f = new THREE.Vector3(), _u = new THREE.Vector3(), _q = new THREE.Quaternion();
+    function headingOf(camObj) {
+      camObj.getWorldQuaternion(_q);
+      _f.set(0, 0, -1).applyQuaternion(_q);
+      _u.set(0, 1, 0).applyQuaternion(_q);
+      const down = Math.max(0, -_f.y);            // 0 = mirando al frente, 1 = mirando al piso
+      const x = _f.x + _u.x * down, z = _f.z + _u.z * down;
+      if (Math.hypot(x, z) < 1e-4) return 0;
+      return Math.atan2(-x, -z);
+    }
     // Centrar (sin tarjeta): gira el juego hacia donde apunta el celular, siempre sobre el piso.
     function recenter() {
       if (G.place === 'marker') { placeWorld(); return; }
       const cam = $('cam').object3D, anchor = $('anchor').object3D;
-      const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
       anchor.rotation.order = 'YXZ';
-      anchor.rotation.set(0, G.gyro ? e.y : 0, 0);
+      anchor.rotation.set(0, G.gyro ? headingOf(cam) : 0, 0);
       placeWorld();
       if (!G.gyro) {
         // Sin giroscopio (PC) la cámara se inclina sola para mirar el juego
@@ -2031,6 +2055,15 @@
     const MARKER_MIND = 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind';
     const MINDAR_JS = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js';
     const MK = { target: null, seen: false, rot: new THREE.Matrix4().makeRotationX(Math.PI / 2), scl: new THREE.Matrix4() };
+    function drawCardQr() {
+      const box = $('cardQr');
+      if (box.dataset.done || typeof qrcode === 'undefined') return;
+      try {
+        const q = qrcode(0, 'M'); q.addData('https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png'); q.make();
+        box.innerHTML = q.createSvgTag({ cellSize: 3, margin: 2 });
+        box.dataset.done = '1';
+      } catch (e) {}
+    }
     function loadScript(src) {
       return new Promise((resolve, reject) => {
         const sc = document.createElement('script');
@@ -2145,6 +2178,7 @@
         setAimMode(gyro);
         fitFov();
         setTimeout(recenter, 300);
+        setTimeout(() => { if (!GAMES[G.mode]) recenter(); }, 1300);   // ya con datos reales del giroscopio
         if (!camOk) toast('📷 Sin cámara: modo pantalla');
         else if (gyro) setTimeout(() => { if (!online()) setStatus('💡 El cofre está en tu piso. Si quedó a un lado, apunta al frente y pulsa 🎯 Centrar'); }, 4500);
         if (netAction) netAction();
@@ -2182,6 +2216,7 @@
           G.place = b.dataset.place;
           document.querySelectorAll('[data-place]').forEach(x => x.classList.toggle('active', x === b));
           $('markerInfo').classList.toggle('hidden', G.place !== 'marker');
+          if (G.place === 'marker') drawCardQr();
         }));
       try { $('markerCm').value = localStorage.getItem('arCofreTarjetaCm') || 20; } catch (e) {}
       document.querySelectorAll('.swatch').forEach(s =>
