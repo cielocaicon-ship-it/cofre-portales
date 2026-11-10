@@ -169,7 +169,6 @@
     @keyframes turn { 0%,20% { transform: rotate(0); } 50%,80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
     #rotate h2 { margin: 0; font-size: 24px; }
     #rotate p { margin: 0; opacity: .85; font-size: 15px; }
-    @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
 
     /* ---------- PANEL DE CONTROLES 2D ---------- */
     #panel {
@@ -227,6 +226,23 @@
       #start .chips .chip { font-size: 12px; padding: 5px 10px; }
       .hud-left .pill { padding: 5px 10px; font-size: clamp(12px, 3.6vmin, 17px); }
     }
+
+    /* ---------- VERTICAL ---------- */
+    @media (orientation: portrait) {
+      #hud { flex-wrap: wrap; row-gap: 6px; }
+      .hud-left { flex-wrap: wrap; gap: 6px; }
+      .hud-left .pill { padding: 5px 10px; font-size: 14px; }
+      #btnCenter .lbl { display: none; }
+      #btnCenter { width: 42px; padding: 0; }
+      #netPill { display: none; }
+      #status { top: calc(var(--st) + 96px); max-width: 90vw; }
+      #soccerControls, #pingControls {
+        left: 50%; transform: translateX(-50%); top: auto; bottom: var(--sb);
+        align-items: center; max-width: 94vw; width: 94vw;
+      }
+      #basketControls { width: 94vw; }
+      #start { flex-direction: column; justify-content: flex-start; padding-top: calc(var(--st) + 24px); }
+    }
   </style>
 </head>
 <body>
@@ -234,13 +250,6 @@
   <!-- Video de la cámara del celular (fondo de realidad aumentada) -->
   <video id="camfeed" autoplay playsinline muted></video>
   <div id="vignette"></div>
-
-  <!-- ================= AVISO: GIRA EL CELULAR ================= -->
-  <div id="rotate">
-    <div class="phone">📱</div>
-    <h2>Gira tu celular</h2>
-    <p>Este juego se ve mejor en <b>horizontal</b>.<br>Si no gira, desactiva el bloqueo de rotación.</p>
-  </div>
 
   <!-- ================= PANTALLA DE INICIO ================= -->
   <div id="start" class="ui">
@@ -277,7 +286,7 @@
     <div class="hud-right">
       <span id="netPill" class="pill hidden"></span>
       <button id="btnSound" class="ui-btn ui" title="Sonido">🔊</button>
-      <button id="btnCenter" class="ui-btn ui wide" title="Centrar">🎯 Centrar</button>
+      <button id="btnCenter" class="ui-btn ui wide" title="Centrar">🎯<span class="lbl"> Centrar</span></button>
       <button id="btnPanel" class="ui-btn ui" title="Panel de controles">🎨</button>
       <button id="btnMenu" class="ui-btn ui hidden" title="Volver a los portales">🏠</button>
     </div>
@@ -321,8 +330,9 @@
   <div id="soccerControls" class="controls hidden">
     <div class="card">
       <div class="stats">⚽ <span id="sShots">0</span> tiros · 🥅 <span id="sGoals">0</span> goles</div>
-      <p class="hint">Toca el balón cuando la flecha apunte a un hueco del arco</p>
+      <p class="hint">Toca la pantalla (o PATEAR) cuando la flecha apunte a un hueco del arco</p>
     </div>
+    <button id="btnKick" class="big ui">⚽ PATEAR</button>
   </div>
 
   <!-- Controles ping-pong (abajo al centro) -->
@@ -1194,13 +1204,14 @@
       show($(cfg.group), true);
       $(cfg.controls).classList.remove('hidden');
       $('btnMenu').classList.remove('hidden');
-      setClickable($('sballHit'), game === 'soccer');
+      setClickable($('sballHit'), false);
+      updateCursor();
       online() ? (game === 'ping' ? (P.online = true) : startDuel(game)) : (P.online = false);
       cfg.reset();
       refreshRaycaster();
       refreshStatus();
       toast(cfg.hello);
-      if (G.gyro) setTimeout(() => setStatus(game === 'basket' ? '👀 Mira el balón y luego sube el celular para ver el aro' : '👇 Inclina el celular hacia el piso para ver ' + (game === 'ping' ? 'la mesa' : 'la cancha')), 1500);
+      if (G.gyro) setTimeout(() => setStatus('📱 Sostén el celular cómodo: ves todo el escenario. Gíralo para mirar alrededor · 🎯 Centrar para volver'), 1500);
       sfx.portal(); missed();
       registrarInteraccion('Entrar a minijuego', cfg.name);
       if (!fromNet) netSend({ t: 'game', g: game });
@@ -1212,6 +1223,8 @@
       Object.values(GAMES).forEach(cfg => { show($(cfg.group), false); $(cfg.controls).classList.add('hidden'); });
       setClickable($('sballHit'), false);
       $('btnMenu').classList.add('hidden');
+      G.mode = 'menu';
+      updateCursor();
       endDuel(true);
       P.online = false;
       show($('menuGroup'), true);
@@ -1856,9 +1869,13 @@
       G.gyro = gyro;
       const cur = $('cursor-raycast');
       cur.setAttribute('cursor', gyro ? 'rayOrigin: entity; fuse: false' : 'rayOrigin: mouse; fuse: false');
-      cur.setAttribute('visible', gyro);
+      updateCursor();
       refreshRaycaster();
       refreshStatus();
+    }
+    // El círculo amarillo solo sirve para elegir en el cofre; en los juegos se esconde
+    function updateCursor() {
+      $('cursor-raycast').setAttribute('visible', G.gyro && !GAMES[G.mode]);
     }
     function fitFov() {
       // La cámara trasera ve ~68° en su lado largo. Con el video "cover":
@@ -1874,30 +1891,26 @@
       try {
         const de = document.documentElement;
         if (de.requestFullscreen && !document.fullscreenElement) {
-          de.requestFullscreen({ navigationUI: 'hide' }).then(() => {
-            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
-          }).catch(() => {});
+          de.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
         }
       } catch (e) {}
     }
 
-    // ===== JUEGOS SOBRE EL PISO REAL, A TAMAÑO REAL =====
-    // Cada juego tiene su escala (1 unidad del juego = "scale" metros) y un punto
-    // "cerca" (donde se para el jugador) que se coloca a "d" metros delante de ti.
-    // El piso del juego queda a la altura del piso real (altura del celular abajo).
-    const LAYOUT = {
-      menu:   { scale: 1.6, nearZ: 0.0,  d: 3.0 },   // cofre de 80 cm sobre el piso
-      ping:   { scale: 2.0, nearZ: 0.68, d: 1.0 },   // mesa oficial 1.52 x 2.74 m, 76 cm de alto
-      soccer: { scale: 3.0, nearZ: 0.4,  d: 2.0 },   // portería de 2.7 m (tipo microfútbol)
-      basket: { scale: 2.6, nearZ: 0.3,  d: 1.6 }    // aro a 2.6 m de altura
-    };
-    function layout() { return LAYOUT[GAMES[G.mode] ? G.mode : 'menu']; }
-    function placeWorld() {
-      const L = layout(), sc = L.scale * PREFS.size;
-      const w = $('world').object3D;
-      w.scale.setScalar(sc);
-      w.position.set(0, -PREFS.height, -(L.d + PREFS.dist) - L.nearZ * sc);
-      // Las sombras cubren todo el juego
+    // ===== DÓNDE APARECE CADA COSA =====
+    // · Menú (cofre y portales): sobre el piso real, a tamaño real.
+    // · Juegos: "vista completa" — la cancha/mesa entera queda frente a ti,
+    //   vista un poco desde arriba, sin tener que agacharte. Si giras el
+    //   celular miras alrededor; 🎯 Centrar la vuelve a encuadrar completa.
+    const MENU_LAYOUT = { scale: 1.6, d: 3.0 };
+    let fitScale = 2, fitY = 0;
+
+    function focusEl() {
+      if (G.mode === 'basket') return $('basketFocus');
+      if (G.mode === 'soccer') return $('soccerFocus');
+      if (G.mode === 'ping') return $('pingFocus');
+      return $('chestFocus');
+    }
+    function updateShadows(sc) {
       const sun = $('sun').getObject3D('light');
       if (sun && sun.shadow) {
         const b = 2.2 * sc, c = sun.shadow.camera;
@@ -1905,21 +1918,88 @@
         c.updateProjectionMatrix();
       }
     }
-    // Centrar: gira el juego hacia donde apunta el celular (sin moverlo del piso).
-    // Sin giroscopio (PC) la cámara se inclina sola para mirar el juego.
-    function focusEl() {
-      if (G.mode === 'basket') return $('basketFocus');
-      if (G.mode === 'soccer') return $('soccerFocus');
-      if (G.mode === 'ping') return $('pingFocus');
-      return $('chestFocus');
+    function placeWorld() {
+      const w = $('world').object3D;
+      if (GAMES[G.mode]) {
+        w.scale.setScalar(fitScale);
+        w.position.set(0, -1.15 + fitY, -(3 + PREFS.dist));
+        updateShadows(fitScale);
+      } else {
+        const sc = MENU_LAYOUT.scale * PREFS.size;
+        const d = window.innerHeight > window.innerWidth ? 4.2 : MENU_LAYOUT.d;   // en vertical, un poco más lejos para ver los 3 portales
+        w.scale.setScalar(sc);
+        w.position.set(0, -PREFS.height, -(d + PREFS.dist));
+        updateShadows(sc);
+      }
     }
-    function recenter() {
+
+    // Puntos de cada juego que SIEMPRE deben verse (coordenadas dentro de #world)
+    const FIT_PTS = {
+      basket: [[-0.37, 1.4, -1.18], [0.37, 1.4, -1.18], [0, 0.36, 0.3], [0, 0.54, 0.3], [-0.3, 0, 0.3], [0.3, 0, 0.3]],
+      soccer: [[-0.5, 0.42, -1.1], [0.5, 0.42, -1.1], [0, 0, 0.46], [-0.32, 0, 0.42], [0.32, 0, 0.42]],
+      ping:   [[-0.4, 0.38, -0.785], [0.4, 0.38, -0.785], [0, 0.56, -0.88], [-0.4, 0.38, 0.585], [0.4, 0.38, 0.585], [0, 0.36, 0.68], [-0.1, 0.52, 0.68], [0.1, 0.52, 0.68]]
+    };
+    // Espacio libre de la pantalla (arriba está el HUD, abajo/lado los controles)
+    function freeArea() {
+      const portrait = window.innerHeight > window.innerWidth;
+      if (portrait) return { top: 0.68, bottom: G.mode === 'basket' ? -0.38 : -0.5, side: 0.92 };
+      return { top: 0.72, bottom: -0.92, side: 0.92 };
+    }
+    function measure() {
+      const cam = $('scene').camera, w = $('world').object3D;
+      if (!cam || !FIT_PTS[G.mode]) return null;
+      w.updateMatrixWorld(true); cam.updateMatrixWorld(true);
+      const A = freeArea();
+      let x = 0, y0 = 1e9, y1 = -1e9;
+      const v = new THREE.Vector3(), c = new THREE.Vector3();
+      for (const p of FIT_PTS[G.mode]) {
+        v.set(p[0], p[1], p[2]); w.localToWorld(v);
+        c.copy(v).applyMatrix4(cam.matrixWorldInverse);
+        if (c.z > -0.2) return { spread: 9, shift: 0 };      // demasiado cerca: achicar
+        v.project(cam);
+        x = Math.max(x, Math.abs(v.x)); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+      }
+      const spread = Math.max(x / A.side, ((y1 - y0) / 2) / ((A.top - A.bottom) / 2));
+      const shift = (A.top + A.bottom) / 2 - (y0 + y1) / 2;
+      const halfFov = THREE.MathUtils.degToRad(cam.fov / 2);
+      return { spread: spread, shift: Math.atan(shift * Math.tan(halfFov)) };
+    }
+    function recenterFit() {
+      const cam = $('cam').object3D, anchor = $('anchor').object3D;
+      const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
+      const theta = Math.min(e.x, -0.5);                     // siempre visto un poco desde arriba
+      anchor.rotation.order = 'YXZ';
+      let extra = 0;
+      const settle = () => {
+        anchor.rotation.set(0, e.y, 0); anchor.updateMatrixWorld(true);
+        placeWorld();
+        const v = new THREE.Vector3();
+        focusEl().object3D.getWorldPosition(v);
+        anchor.worldToLocal(v);
+        fitY = clamp(fitY + (Math.max(0.5, -v.z) * Math.tan(theta) - v.y), -8, 8);
+        placeWorld();
+        anchor.rotation.set(e.x - theta + extra, e.y, 0); anchor.updateMatrixWorld(true);
+      };
+      for (let i = 0; i < 10; i++) {
+        settle();
+        const m = measure();
+        if (!m) break;
+        const k = clamp((0.96 * PREFS.size) / m.spread, 0.5, 1.8);
+        extra = clamp(extra + m.shift, -0.7, 0.7);
+        if (Math.abs(k - 1) < 0.015 && Math.abs(m.shift) < 0.005) break;
+        fitScale = clamp(fitScale * k, 0.6, 6);
+      }
+      settle();
+    }
+    // Menú: el cofre sobre el piso, girado hacia donde apunta el celular.
+    function recenterFloor() {
       const cam = $('cam').object3D, anchor = $('anchor').object3D;
       const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
       anchor.rotation.order = 'YXZ';
       anchor.rotation.set(0, G.gyro ? e.y : 0, 0);
       placeWorld();
       if (!G.gyro) {
+        // Sin giroscopio (PC) la cámara se inclina sola para mirar el cofre
         const lc = $('cam').components['look-controls'];
         anchor.updateMatrixWorld(true);
         const v = new THREE.Vector3(), c = new THREE.Vector3();
@@ -1928,6 +2008,9 @@
         v.sub(c);
         if (lc) { lc.yawObject.rotation.y = 0; lc.pitchObject.rotation.x = Math.atan2(v.y, Math.hypot(v.x, v.z)); }
       }
+    }
+    function recenter() {
+      if (GAMES[G.mode]) recenterFit(); else recenterFloor();
     }
 
     const PREFS = { size: 1, dist: 0, height: 1.45, color: '#D4651F' };
@@ -1988,7 +2071,7 @@
         fitFov();
         setTimeout(recenter, 300);
         if (!camOk) toast('📷 Sin cámara: modo pantalla');
-        else if (gyro) setTimeout(() => { if (!online()) setStatus('💡 Si el juego quedó a un lado, apunta al frente y pulsa 🎯 Centrar · 🎨 Altura: sentado o de pie'); }, 4500);
+        else if (gyro) setTimeout(() => { if (!online()) setStatus('💡 El cofre está en tu piso. Si quedó a un lado, apunta al frente y pulsa 🎯 Centrar'); }, 4500);
         if (netAction) netAction();
       }
       $('btnSolo').addEventListener('click', () => begin(null));
@@ -2031,12 +2114,14 @@
         toast('🧹 Estadísticas borradas');
       });
       $('btnShoot').addEventListener('click', () => shootBasket(0.75 + B.meter * 0.5, 0));
+      $('btnKick').addEventListener('click', kick);
 
       // Gestos: deslizar para lanzar (baloncesto) y mover la raqueta (ping-pong)
       let sw = null;
       const paddleFromX = (x) => { P.pxTarget = clamp((x / window.innerWidth - 0.5) * 1.2, -0.46, 0.46); };
       window.addEventListener('pointerdown', (e) => {
         if (e.target.closest('.ui')) return;
+        if (G.mode === 'soccer') kick();
         if (G.mode === 'basket') sw = { x: e.clientX, y: e.clientY };
         if (G.mode === 'ping') paddleFromX(e.clientX);
       });
@@ -2059,7 +2144,7 @@
       });
 
       window.addEventListener('resize', () => { fitFov(); if (G.started) setTimeout(recenter, 100); });
-      window.addEventListener('orientationchange', () => setTimeout(() => { fitFov(); recenter(); }, 500));
+      window.addEventListener('orientationchange', () => setTimeout(() => { fitFov(); if (G.started) recenter(); }, 500));
     });
   </script>
 </body>
