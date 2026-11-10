@@ -243,6 +243,21 @@
       #basketControls { width: 94vw; }
       #start { flex-direction: column; justify-content: flex-start; padding-top: calc(var(--st) + 24px); }
     }
+
+    /* ---------- Elegir modo (con / sin tarjeta) ---------- */
+    .mode-row { display: flex; gap: 8px; width: 100%; max-width: 320px; }
+    .mode-btn {
+      flex: 1; pointer-events: auto; cursor: pointer; padding: 8px 10px; border-radius: 14px; font-family: inherit;
+      font-weight: 800; font-size: 13px; color: #fff; background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.3);
+    }
+    .mode-btn small { font-weight: 600; opacity: .85; }
+    .mode-btn.active { background: var(--cian); color: #000; border-color: #fff; }
+    .marker-info { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 320px; font-size: 13px; }
+    .marker-info p { margin: 0; }
+    .marker-thumb { width: 120px; border-radius: 10px; border: 3px solid var(--oro); }
+    .cm-row { font-weight: 700; }
+    #markerCm { width: 70px; padding: 6px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.4); background: rgba(255,255,255,.12); color: #fff; font-size: 15px; text-align: center; font-family: inherit; }
+    body.marker-mode, html:has(body.marker-mode) { background: transparent !important; }
   </style>
 </head>
 <body>
@@ -260,6 +275,16 @@
       <p class="tip">📷 Realidad aumentada sin marcador · 🌐 Solo u online</p>
     </div>
     <div class="col">
+      <div class="mode-row">
+        <button class="mode-btn active" data-place="free">📱 Sin tarjeta</button>
+        <button class="mode-btn" data-place="marker">🃏 Con tarjeta en el piso<br><small>(más real)</small></button>
+      </div>
+      <div id="markerInfo" class="marker-info hidden">
+        <p>Imprime esta tarjeta (o ábrela en otro celular) y ponla <b>acostada en el piso</b>. El juego sale encima de ella.</p>
+        <a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener"><img class="marker-thumb" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" alt="Tarjeta marcador" /></a>
+        <label class="cm-row">Ancho de la tarjeta: <input id="markerCm" type="number" min="4" max="80" step="0.5" value="20" /> cm</label>
+        <p class="small">Mídela con una regla: así todo sale de tamaño real.</p>
+      </div>
       <input id="playerName" class="name-input" maxlength="12" placeholder="Tu nombre" autocomplete="off" />
       <button id="btnSolo" class="big">🎮 JUGAR SOLO</button>
       <button id="btnQuick" class="big alt">🌐 MULTIJUGADOR ONLINE</button>
@@ -297,13 +322,14 @@
   <!-- ================= PANEL DE CONTROLES 2D ================= -->
   <div id="panel" class="ui hidden">
     <h3>🎨 Controles <button id="btnClosePanel" class="ui-btn">✕</button></h3>
-    <label>Tamaño (100% = real) <span id="sizeVal">100%</span></label>
-    <input id="sizeRange" type="range" min="0.5" max="1.5" step="0.05" value="1" />
-    <label>Más lejos / más cerca <span id="distVal">+0.0 m</span></label>
-    <input id="distRange" type="range" min="-0.5" max="2" step="0.1" value="0" />
-    <label>Altura de tu celular <span id="heightVal">1.45 m</span></label>
-    <input id="heightRange" type="range" min="0.8" max="1.9" step="0.05" value="1.45" />
-    <p class="small">Sentado ≈ 1.0 m · De pie ≈ 1.45 m. Así el juego queda justo en tu piso.</p>
+    <div id="heightBox">
+      <label>¿Cómo estás jugando?</label>
+      <div class="mode-row">
+        <button class="mode-btn" data-height="1.45">🧍 De pie</button>
+        <button class="mode-btn" data-height="1.0">🪑 Sentada</button>
+      </div>
+      <p class="small">Así el juego queda justo sobre tu piso (modo sin tarjeta).</p>
+    </div>
     <label>Color del balón</label>
     <div class="swatches">
       <button class="swatch" data-color="#D4651F" style="background:#D4651F" title="Original"></button>
@@ -330,7 +356,7 @@
   <div id="soccerControls" class="controls hidden">
     <div class="card">
       <div class="stats">⚽ <span id="sShots">0</span> tiros · 🥅 <span id="sGoals">0</span> goles</div>
-      <p class="hint">Toca la pantalla (o PATEAR) cuando la flecha apunte a un hueco del arco</p>
+      <p class="hint">Toca la pantalla (o PATEAR) cuando la mira amarilla esté en un hueco del arco</p>
     </div>
     <button id="btnKick" class="big ui">⚽ PATEAR</button>
   </div>
@@ -523,14 +549,18 @@
         <a-entity id="basketGame" position="0 0 -0.4" visible="false">
           <a-entity id="basketFocus" position="0 0.5 0"></a-entity>
           <!-- Piso de madera (parqué) -->
-          <a-plane width="1.7" height="1.95" rotation="-90 0 0" position="0 0 -0.05" color="#ffffff"
-            material="roughness: 0.45; metalness: 0" ptex="type: parquet; repeat: 1 1" shadow="cast: false; receive: true"></a-plane>
+          <a-plane width="4.4" height="4.8" rotation="-90 0 0" position="0 0 1.1" color="#ffffff"
+            material="roughness: 0.45; metalness: 0" ptex="type: parquet; repeat: 2.6 2.8" shadow="cast: false; receive: true"></a-plane>
+          <!-- Resto de la cancha: laterales, mitad de cancha y círculo central -->
+          <a-box width="4.0" height="0.003" depth="0.012" position="0 0.003 -0.85" color="#FFFFFF"></a-box>
+          <a-box width="0.012" height="0.003" depth="4.3" position="-2.0 0.003 1.3" color="#FFFFFF"></a-box>
+          <a-box width="0.012" height="0.003" depth="4.3" position="2.0 0.003 1.3" color="#FFFFFF"></a-box>
+          <a-box width="4.0" height="0.003" depth="0.012" position="0 0.003 3.45" color="#FFFFFF"></a-box>
+          <a-ring radius-inner="0.45" radius-outer="0.462" rotation="-90 0 0" position="0 0.003 3.45" color="#FFFFFF" material="shader: flat"></a-ring>
+          <a-circle radius="0.45" rotation="-90 0 0" position="0 0.002 3.45" material="color: #B03A2E; opacity: 0.85; transparent: true"></a-circle>
           <!-- Zona pintada (la "llave") -->
           <a-plane width="0.38" height="0.5" rotation="-90 0 0" position="0 0.002 -0.6" color="#B03A2E" material="roughness: 0.5; opacity: 0.9; transparent: true" shadow="receive: true"></a-plane>
           <!-- Líneas blancas -->
-          <a-box width="1.7" height="0.003" depth="0.012" position="0 0.003 -0.85" color="#FFFFFF" material="roughness: 0.6"></a-box>
-          <a-box width="0.012" height="0.003" depth="1.95" position="-0.84 0.003 -0.05" color="#FFFFFF"></a-box>
-          <a-box width="0.012" height="0.003" depth="1.95" position="0.84 0.003 -0.05" color="#FFFFFF"></a-box>
           <a-box width="0.012" height="0.003" depth="0.5" position="-0.19 0.003 -0.6" color="#FFFFFF"></a-box>
           <a-box width="0.012" height="0.003" depth="0.5" position="0.19 0.003 -0.6" color="#FFFFFF"></a-box>
           <a-box width="0.39" height="0.003" depth="0.012" position="0 0.003 -0.35" color="#FFFFFF"></a-box>
@@ -584,12 +614,33 @@
         <a-entity id="soccerGame" position="0 0 -0.2" visible="false">
           <a-entity id="soccerFocus" position="0 0.1 -0.2"></a-entity>
           <!-- Pasto con franjas de corte -->
-          <a-plane width="1.75" height="2.4" rotation="-90 0 0" position="0 0 -0.15" color="#ffffff"
-            material="roughness: 0.95" ptex="type: grass; repeat: 1 1" shadow="cast: false; receive: true"></a-plane>
+          <a-plane width="3.6" height="6.0" rotation="-90 0 0" position="0 0 1.4" color="#ffffff"
+            material="roughness: 0.95" ptex="type: grass; repeat: 2 2.5" shadow="cast: false; receive: true"></a-plane>
+          <!-- Resto de la cancha -->
+          <a-box width="2.8" height="0.003" depth="0.012" position="0 0.003 -0.9" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="4.5" position="-1.4 0.003 1.35" color="#F5F5F5"></a-box>
+          <a-box width="0.012" height="0.003" depth="4.5" position="1.4 0.003 1.35" color="#F5F5F5"></a-box>
+          <a-box width="2.8" height="0.003" depth="0.012" position="0 0.003 3.6" color="#F5F5F5"></a-box>
+          <a-ring radius-inner="0.5" radius-outer="0.512" rotation="-90 0 0" position="0 0.003 3.6" color="#F5F5F5" material="shader: flat"></a-ring>
+          <!-- Banderines de esquina -->
+          <a-entity position="-1.4 0 -0.9">
+            <a-cylinder radius="0.005" height="0.16" position="0 0.08 0" color="#FAFAFA"></a-cylinder>
+            <a-plane width="0.05" height="0.035" position="0.025 0.14 0" material="color: #FF6D00; side: double"></a-plane>
+          </a-entity>
+          <a-entity position="1.4 0 -0.9">
+            <a-cylinder radius="0.005" height="0.16" position="0 0.08 0" color="#FAFAFA"></a-cylinder>
+            <a-plane width="0.05" height="0.035" position="-0.025 0.14 0" material="color: #FF6D00; side: double"></a-plane>
+          </a-entity>
+          <!-- Vallas publicitarias detrás del arco -->
+          <a-entity id="boards" shadow="cast: true; receive: false">
+            <a-box width="0.9" height="0.09" depth="0.02" position="-1.0 0.045 -1.35" color="#0D47A1"></a-box>
+            <a-entity canvas-text="text: AR ARCADE; color: #FFFFFF; width: 1.0" position="-1.0 0.05 -1.335"></a-entity>
+            <a-box width="0.9" height="0.09" depth="0.02" position="0 0.045 -1.35" color="#C2185B"></a-box>
+            <a-entity canvas-text="text: COFRE DE LOS PORTALES; color: #FFFFFF; width: 0.75" position="0 0.05 -1.335"></a-entity>
+            <a-box width="0.9" height="0.09" depth="0.02" position="1.0 0.045 -1.35" color="#00897B"></a-box>
+            <a-entity canvas-text="text: AR ARCADE; color: #FFFFFF; width: 1.0" position="1.0 0.05 -1.335"></a-entity>
+          </a-entity>
           <!-- Líneas de cal -->
-          <a-box width="1.6" height="0.003" depth="0.012" position="0 0.003 -0.9" color="#F5F5F5"></a-box>
-          <a-box width="0.012" height="0.003" depth="1.95" position="-0.8 0.003 0.075" color="#F5F5F5"></a-box>
-          <a-box width="0.012" height="0.003" depth="1.95" position="0.8 0.003 0.075" color="#F5F5F5"></a-box>
           <a-box width="0.86" height="0.003" depth="0.012" position="0 0.003 -0.5" color="#F5F5F5"></a-box>
           <a-box width="0.012" height="0.003" depth="0.4" position="-0.43 0.003 -0.7" color="#F5F5F5"></a-box>
           <a-box width="0.012" height="0.003" depth="0.4" position="0.43 0.003 -0.7" color="#F5F5F5"></a-box>
@@ -634,6 +685,12 @@
             <a-sphere radius="0.047" position="0 0.385 -0.004" theta-length="80" color="#2B1B10" material="roughness: 0.9"></a-sphere>
           </a-entity>
 
+          <!-- Mira en el arco: muestra a dónde irá el tiro -->
+          <a-entity id="aimGoal" position="0 0.2 -0.88">
+            <a-torus radius="0.05" radius-tubular="0.006" material="shader: flat; color: #FFEA00"></a-torus>
+            <a-circle radius="0.012" material="shader: flat; color: #FFEA00"></a-circle>
+            <a-box width="0.006" height="0.2" depth="0.002" material="shader: flat; color: #FFEA00; opacity: 0.6; transparent: true"></a-box>
+          </a-entity>
           <!-- Flecha de puntería -->
           <a-entity id="arrow" position="0 0.03 0.6">
             <a-cylinder radius="0.012" height="0.16" rotation="90 0 0" position="0 0 -0.16" color="#FFEA00" material="shader: flat; opacity: 0.9; transparent: true"></a-cylinder>
@@ -939,6 +996,7 @@
       score: 0,
       record: 0,
       started: false,
+      place: 'free',          // free (sin tarjeta) | marker (con tarjeta)
       streak: 0
     };
 
@@ -1211,7 +1269,7 @@
       refreshRaycaster();
       refreshStatus();
       toast(cfg.hello);
-      if (G.gyro) setTimeout(() => setStatus('📱 Sostén el celular cómodo: ves todo el escenario. Gíralo para mirar alrededor · 🎯 Centrar para volver'), 1500);
+      if (G.gyro && G.place !== 'marker') setTimeout(() => setStatus('📱 Gira el celular para recorrer la cancha · 🎯 Centrar la pone frente a ti'), 1500);
       sfx.portal(); missed();
       registrarInteraccion('Entrar a minijuego', cfg.name);
       if (!fromNet) netSend({ t: 'game', g: game });
@@ -1349,6 +1407,7 @@
       S.state = 'flying'; S.t = 0; S.result = null; S.resetAt = 3.5;
       S.shots++; $('sShots').textContent = S.shots;
       show($('arrow'), false);
+      $('aimGoal').object3D.visible = false;
       sfx.kick();
     }
     function reflect(vel, nx, ny, nz, k) {
@@ -1444,6 +1503,9 @@
         const arrow = $('arrow').object3D;
         arrow.position.set(S.START.x, 0.03, S.START.z);
         arrow.rotation.y = S.aim;
+        const ag = $('aimGoal').object3D;
+        ag.visible = true;
+        ag.position.x = clamp(-Math.tan(S.aim) * (S.START.z - S.GOAL_Z), -0.75, 0.75);
         return;
       }
       const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
@@ -1885,9 +1947,11 @@
       fov = THREE.MathUtils.radToDeg(fov);
       // Sin cámara o sin giroscopio no puedes mirar alrededor: lente más amplio
       if (!document.body.classList.contains('cam-on') || !G.gyro) fov = a > 1 ? 55 : 70;
+      if (G.place === 'marker') return;          // con tarjeta, MindAR pone el lente exacto
       $('cam').setAttribute('camera', 'fov', fov);
     }
-    function goLandscape() {
+    // Pantalla completa (Android). La orientación queda libre: vertical u horizontal.
+    function goFullscreen() {
       try {
         const de = document.documentElement;
         if (de.requestFullscreen && !document.fullscreenElement) {
@@ -1896,21 +1960,28 @@
       } catch (e) {}
     }
 
-    // ===== DÓNDE APARECE CADA COSA =====
-    // · Menú (cofre y portales): sobre el piso real, a tamaño real.
-    // · Juegos: "vista completa" — la cancha/mesa entera queda frente a ti,
-    //   vista un poco desde arriba, sin tener que agacharte. Si giras el
-    //   celular miras alrededor; 🎯 Centrar la vuelve a encuadrar completa.
-    const MENU_LAYOUT = { scale: 1.6, d: 3.0 };
-    let fitScale = 2, fitY = 0;
-
+    // ===== DÓNDE APARECE CADA COSA (a tamaño real) =====
+    // scale: 1 unidad del juego = "scale" metros.
+    // Sin tarjeta: el punto "nearZ" del juego queda a "d" metros delante de ti, sobre el piso.
+    // Con tarjeta: el punto "markerZ" del juego queda encima de la tarjeta.
+    const LAYOUT = {
+      menu:   { scale: 1.6, nearZ: 0.0,  d: 3.0, markerZ: 0.0 },    // cofre de 80 cm
+      ping:   { scale: 2.0, nearZ: 0.68, d: 1.0, markerZ: -0.1 },   // mesa oficial 1.52 x 2.74 m
+      soccer: { scale: 3.0, nearZ: 0.4,  d: 2.0, markerZ: -0.3, mScale: 2.2 },
+      basket: { scale: 2.6, nearZ: 0.3,  d: 1.6, markerZ: -0.35, mScale: 2.2 }
+    };
+    function layout() { return LAYOUT[GAMES[G.mode] ? G.mode : 'menu']; }
     function focusEl() {
       if (G.mode === 'basket') return $('basketFocus');
       if (G.mode === 'soccer') return $('soccerFocus');
       if (G.mode === 'ping') return $('pingFocus');
       return $('chestFocus');
     }
-    function updateShadows(sc) {
+    const _ws = new THREE.Vector3();
+    function updateShadows() {
+      // Tamaño real de 1 unidad del juego en la escena (sirve con y sin tarjeta)
+      $('world').object3D.updateMatrixWorld(true);
+      const sc = $('world').object3D.getWorldScale(_ws).x;
       const sun = $('sun').getObject3D('light');
       if (sun && sun.shadow) {
         const b = 2.2 * sc, c = sun.shadow.camera;
@@ -1919,87 +1990,31 @@
       }
     }
     function placeWorld() {
-      const w = $('world').object3D;
-      if (GAMES[G.mode]) {
-        w.scale.setScalar(fitScale);
-        w.position.set(0, -1.15 + fitY, -(3 + PREFS.dist));
-        updateShadows(fitScale);
-      } else {
-        const sc = MENU_LAYOUT.scale * PREFS.size;
-        const d = window.innerHeight > window.innerWidth ? 4.2 : MENU_LAYOUT.d;   // en vertical, un poco más lejos para ver los 3 portales
+      const L = layout(), w = $('world').object3D;
+      if (G.place === 'marker') {
+        const sc = L.mScale || L.scale;
         w.scale.setScalar(sc);
-        w.position.set(0, -PREFS.height, -(d + PREFS.dist));
+        w.position.set(0, 0, -L.markerZ * sc);
+        updateShadows(sc);
+      } else {
+        const sc = L.scale;
+        let d = L.d;
+        if (!GAMES[G.mode] && window.innerHeight > window.innerWidth) d = 4.2;   // vertical: caben los 3 portales
+        w.scale.setScalar(sc);
+        w.position.set(0, -PREFS.height, -d - L.nearZ * sc);
         updateShadows(sc);
       }
     }
-
-    // Puntos de cada juego que SIEMPRE deben verse (coordenadas dentro de #world)
-    const FIT_PTS = {
-      basket: [[-0.37, 1.4, -1.18], [0.37, 1.4, -1.18], [0, 0.36, 0.3], [0, 0.54, 0.3], [-0.3, 0, 0.3], [0.3, 0, 0.3]],
-      soccer: [[-0.5, 0.42, -1.1], [0.5, 0.42, -1.1], [0, 0, 0.46], [-0.32, 0, 0.42], [0.32, 0, 0.42]],
-      ping:   [[-0.4, 0.38, -0.785], [0.4, 0.38, -0.785], [0, 0.56, -0.88], [-0.4, 0.38, 0.585], [0.4, 0.38, 0.585], [0, 0.36, 0.68], [-0.1, 0.52, 0.68], [0.1, 0.52, 0.68]]
-    };
-    // Espacio libre de la pantalla (arriba está el HUD, abajo/lado los controles)
-    function freeArea() {
-      const portrait = window.innerHeight > window.innerWidth;
-      if (portrait) return { top: 0.68, bottom: G.mode === 'basket' ? -0.38 : -0.5, side: 0.92 };
-      return { top: 0.72, bottom: -0.92, side: 0.92 };
-    }
-    function measure() {
-      const cam = $('scene').camera, w = $('world').object3D;
-      if (!cam || !FIT_PTS[G.mode]) return null;
-      w.updateMatrixWorld(true); cam.updateMatrixWorld(true);
-      const A = freeArea();
-      let x = 0, y0 = 1e9, y1 = -1e9;
-      const v = new THREE.Vector3(), c = new THREE.Vector3();
-      for (const p of FIT_PTS[G.mode]) {
-        v.set(p[0], p[1], p[2]); w.localToWorld(v);
-        c.copy(v).applyMatrix4(cam.matrixWorldInverse);
-        if (c.z > -0.2) return { spread: 9, shift: 0 };      // demasiado cerca: achicar
-        v.project(cam);
-        x = Math.max(x, Math.abs(v.x)); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
-      }
-      const spread = Math.max(x / A.side, ((y1 - y0) / 2) / ((A.top - A.bottom) / 2));
-      const shift = (A.top + A.bottom) / 2 - (y0 + y1) / 2;
-      const halfFov = THREE.MathUtils.degToRad(cam.fov / 2);
-      return { spread: spread, shift: Math.atan(shift * Math.tan(halfFov)) };
-    }
-    function recenterFit() {
-      const cam = $('cam').object3D, anchor = $('anchor').object3D;
-      const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
-      const theta = Math.min(e.x, -0.5);                     // siempre visto un poco desde arriba
-      anchor.rotation.order = 'YXZ';
-      let extra = 0;
-      const settle = () => {
-        anchor.rotation.set(0, e.y, 0); anchor.updateMatrixWorld(true);
-        placeWorld();
-        const v = new THREE.Vector3();
-        focusEl().object3D.getWorldPosition(v);
-        anchor.worldToLocal(v);
-        fitY = clamp(fitY + (Math.max(0.5, -v.z) * Math.tan(theta) - v.y), -8, 8);
-        placeWorld();
-        anchor.rotation.set(e.x - theta + extra, e.y, 0); anchor.updateMatrixWorld(true);
-      };
-      for (let i = 0; i < 10; i++) {
-        settle();
-        const m = measure();
-        if (!m) break;
-        const k = clamp((0.96 * PREFS.size) / m.spread, 0.5, 1.8);
-        extra = clamp(extra + m.shift, -0.7, 0.7);
-        if (Math.abs(k - 1) < 0.015 && Math.abs(m.shift) < 0.005) break;
-        fitScale = clamp(fitScale * k, 0.6, 6);
-      }
-      settle();
-    }
-    // Menú: el cofre sobre el piso, girado hacia donde apunta el celular.
-    function recenterFloor() {
+    // Centrar (sin tarjeta): gira el juego hacia donde apunta el celular, siempre sobre el piso.
+    function recenter() {
+      if (G.place === 'marker') { placeWorld(); return; }
       const cam = $('cam').object3D, anchor = $('anchor').object3D;
       const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
       anchor.rotation.order = 'YXZ';
       anchor.rotation.set(0, G.gyro ? e.y : 0, 0);
       placeWorld();
       if (!G.gyro) {
-        // Sin giroscopio (PC) la cámara se inclina sola para mirar el cofre
+        // Sin giroscopio (PC) la cámara se inclina sola para mirar el juego
         const lc = $('cam').components['look-controls'];
         anchor.updateMatrixWorld(true);
         const v = new THREE.Vector3(), c = new THREE.Vector3();
@@ -2009,22 +2024,70 @@
         if (lc) { lc.yawObject.rotation.y = 0; lc.pitchObject.rotation.x = Math.atan2(v.y, Math.hypot(v.x, v.z)); }
       }
     }
-    function recenter() {
-      if (GAMES[G.mode]) recenterFit(); else recenterFloor();
+
+    /* =========================================================
+       MODO TARJETA (MindAR): el juego queda pegado a una tarjeta en el piso
+       ========================================================= */
+    const MARKER_MIND = 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind';
+    const MINDAR_JS = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js';
+    const MK = { target: null, seen: false, rot: new THREE.Matrix4().makeRotationX(Math.PI / 2), scl: new THREE.Matrix4() };
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const sc = document.createElement('script');
+        sc.src = src; sc.onload = resolve; sc.onerror = reject;
+        document.head.appendChild(sc);
+      });
+    }
+    async function startMarkerMode() {
+      const scene = $('scene');
+      await loadScript(MINDAR_JS);
+      document.body.classList.add('marker-mode');
+      // La cámara de MindAR va en el origen y sin giroscopio
+      const camEl = $('cam');
+      camEl.setAttribute('look-controls', 'enabled', false);
+      camEl.object3D.position.set(0, 0, 0);
+      camEl.object3D.rotation.set(0, 0, 0);
+      // La tarjeta mide "cm" de ancho -> 1 unidad de MindAR = ancho de la tarjeta
+      const cm = clamp(parseFloat($('markerCm').value) || 20, 4, 80);
+      try { localStorage.setItem('arCofreTarjetaCm', String(cm)); } catch (e) {}
+      const m = cm / 100;
+      MK.scl.makeScale(1 / m, 1 / m, 1 / m);
+      const t = document.createElement('a-entity');
+      t.setAttribute('mindar-image-target', 'targetIndex: 0');
+      scene.appendChild(t);
+      MK.target = t;
+      t.addEventListener('targetFound', () => { MK.seen = true; setStatus('✅ ¡Tarjeta encontrada! Muévete alrededor: el juego queda en el piso'); });
+      t.addEventListener('targetLost', () => setStatus('🔍 Apunta a la tarjeta del piso para ver el juego', true));
+      scene.setAttribute('mindar-image', `imageTargetSrc: ${MARKER_MIND}; autoStart: false; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 40; warmupTolerance: 3`);
+      await new Promise(r => setTimeout(r, 50));
+      const sys = scene.systems['mindar-image-system'];
+      scene.addEventListener('arReady', () => setStatus('🔍 Apunta la cámara a la tarjeta que está en el piso', true), { once: true });
+      scene.addEventListener('arError', () => setStatus('⚠️ No se pudo abrir la cámara. Revisa los permisos.', true), { once: true });
+      sys.start();
+      $('anchor').object3D.matrixAutoUpdate = false;
+      $('anchor').object3D.visible = false;
+    }
+    // Cada cuadro: el juego copia la posición de la tarjeta (acostada en el piso)
+    const _mkTmp = new THREE.Matrix4();
+    function syncMarker() {
+      if (G.place !== 'marker' || !MK.target) return;
+      const a = $('anchor').object3D, t = MK.target.object3D;
+      a.visible = t.visible;
+      if (!t.visible) return;
+      _mkTmp.copy(t.matrixWorld).multiply(MK.rot).multiply(MK.scl);
+      a.matrix.copy(_mkTmp);
+      a.matrixWorldNeedsUpdate = true;
+      if ((MK.frame = (MK.frame || 0) + 1) % 30 === 1) updateShadows();
     }
 
-    const PREFS = { size: 1, dist: 0, height: 1.45, color: '#D4651F' };
+
+    const PREFS = { height: 1.45, color: '#D4651F' };
     function applyPrefs() {
       $('bballSkin').setAttribute('ptex', 'color', PREFS.color);
       $('sballSkin').setAttribute('ptex', 'color', PREFS.color === '#D4651F' ? '' : PREFS.color);
-      $('sizeVal').textContent = Math.round(PREFS.size * 100) + '%';
-      $('distVal').textContent = (PREFS.dist >= 0 ? '+' : '') + PREFS.dist.toFixed(1) + ' m';
-      $('heightVal').textContent = PREFS.height.toFixed(2) + ' m';
-      $('sizeRange').value = PREFS.size;
-      $('distRange').value = PREFS.dist;
-      $('heightRange').value = PREFS.height;
+      document.querySelectorAll('[data-height]').forEach(b => b.classList.toggle('active', Math.abs(parseFloat(b.dataset.height) - PREFS.height) < 0.01));
       document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === PREFS.color));
-      try { localStorage.setItem('arCofrePrefs2', JSON.stringify(PREFS)); } catch (e) {}
+      try { localStorage.setItem('arCofrePrefs3', JSON.stringify(PREFS)); } catch (e) {}
       if (G.started) recenter(); else placeWorld();
     }
 
@@ -2034,6 +2097,7 @@
     AFRAME.registerComponent('game-manager', {
       tick: function (time, delta) {
         const dt = Math.min((delta || 16) / 1000, 0.05);
+        syncMarker();
         if (G.mode === 'basket') updateBasket(dt);
         else if (G.mode === 'soccer') updateSoccer(dt);
         else if (G.mode === 'ping') updatePing(dt);
@@ -2048,7 +2112,7 @@
       const scene = $('scene');
 
       try { G.record = parseInt(localStorage.getItem('arCofreRecord') || '0', 10) || 0; } catch (e) {}
-      try { const p = JSON.parse(localStorage.getItem('arCofrePrefs2') || '{}'); if (p.color && !/^#/.test(p.color)) delete p.color; Object.assign(PREFS, p); } catch (e) {}
+      try { const p = JSON.parse(localStorage.getItem('arCofrePrefs3') || '{}'); if (p.color && !/^#/.test(p.color)) delete p.color; Object.assign(PREFS, p); } catch (e) {}
       try { $('playerName').value = localStorage.getItem('arCofreNombre') || ''; } catch (e) {}
       $('record').textContent = G.record;
       const ready = () => { applyPrefs(); fitFov(); makeHoloParticles(); };
@@ -2060,13 +2124,24 @@
         $('start').classList.add('hidden');
         setStatus('📷 Abriendo cámara…', true);
         sfxInit(); sfx.tap();
+        goFullscreen();
+        if (G.place === 'marker') {
+          G.started = true;
+          G.mode = 'chest';
+          setAimMode(false);                       // con tarjeta se toca directo el objeto
+          $('btnCenter').classList.add('hidden');
+          $('heightBox').classList.add('hidden');
+          placeWorld();
+          try { await startMarkerMode(); }
+          catch (e) { setStatus('⚠️ No se pudo cargar el modo tarjeta. Revisa tu internet.', true); }
+          if (netAction) netAction();
+          return;
+        }
         const gyroPromise = enableGyro();
-        goLandscape();
         const camOk = await startCameraFeed();
         const gyro = await gyroPromise;
         G.started = true;
         G.mode = 'chest';
-        fitFov();
         setAimMode(gyro);
         fitFov();
         setTimeout(recenter, 300);
@@ -2100,9 +2175,15 @@
       });
       $('btnPanel').addEventListener('click', () => $('panel').classList.toggle('hidden'));
       $('btnClosePanel').addEventListener('click', () => $('panel').classList.add('hidden'));
-      $('sizeRange').addEventListener('input', (e) => { PREFS.size = parseFloat(e.target.value); applyPrefs(); });
-      $('heightRange').addEventListener('input', (e) => { PREFS.height = parseFloat(e.target.value); applyPrefs(); });
-      $('distRange').addEventListener('input', (e) => { PREFS.dist = parseFloat(e.target.value); applyPrefs(); });
+      document.querySelectorAll('[data-height]').forEach(b =>
+        b.addEventListener('click', () => { PREFS.height = parseFloat(b.dataset.height); applyPrefs(); toast(b.textContent); }));
+      document.querySelectorAll('[data-place]').forEach(b =>
+        b.addEventListener('click', () => {
+          G.place = b.dataset.place;
+          document.querySelectorAll('[data-place]').forEach(x => x.classList.toggle('active', x === b));
+          $('markerInfo').classList.toggle('hidden', G.place !== 'marker');
+        }));
+      try { $('markerCm').value = localStorage.getItem('arCofreTarjetaCm') || 20; } catch (e) {}
       document.querySelectorAll('.swatch').forEach(s =>
         s.addEventListener('click', () => { PREFS.color = s.dataset.color; applyPrefs(); registrarInteraccion('Cambiar color', PREFS.color); }));
       $('btnReset').addEventListener('click', () => {
