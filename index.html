@@ -268,36 +268,6 @@
     #cardQr svg { width: 110px; height: 110px; background: #fff; border-radius: 8px; }
 
     .traj-info { color: #FFEA00; font-weight: 800; font-size: clamp(12px, 1.9vmax, 15px); text-align: center; margin: 4px 0; }
-
-    /* ---------- SAFARI ---------- */
-    #parksControls { left: 50%; transform: translateX(-50%); bottom: var(--sb); align-items: center; width: min(94vw, 420px); }
-    .parks-map {
-      position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center;
-      background: rgba(10, 4, 30, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      padding: var(--st) var(--sr) var(--sb) var(--sl); overflow-y: auto;
-    }
-    .map-card {
-      width: min(94vw, 560px); max-height: 100%; overflow-y: auto; padding: 16px; border-radius: 20px;
-      background: linear-gradient(160deg, rgba(60,20,120,.95), rgba(20,8,48,.95)); border: 1.5px solid rgba(255,255,255,.25);
-      display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center;
-    }
-    .map-card h2 { margin: 0; font-size: 22px; }
-    .map-card .mode-row { max-width: 100%; }
-    .zone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-    .zone-btn {
-      pointer-events: auto; cursor: pointer; font-family: inherit; color: #fff; padding: 10px 8px; border-radius: 14px;
-      background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.28); display: flex; flex-direction: column; gap: 3px; align-items: center;
-    }
-    .zone-btn:active { transform: scale(.96); }
-    .zone-btn .ze { font-size: 26px; }
-    .zone-btn b { font-size: 13px; }
-    .zone-btn .zw { font-size: 15px; letter-spacing: 2px; }
-    .album { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: 100%; }
-    .alb { position: relative; display: flex; flex-direction: column; align-items: center; font-size: 22px; padding: 6px 2px; border-radius: 10px; background: rgba(0,0,0,.3); opacity: .55; }
-    .alb.got { opacity: 1; background: rgba(255,255,255,.12); }
-    .alb small { font-size: 9px; line-height: 1.1; }
-    .alb i { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; }
-    @media (orientation: landscape) { .album { grid-template-columns: repeat(12, 1fr); } .zone-grid { grid-template-columns: repeat(4, 1fr); } }
   </style>
 </head>
 <body>
@@ -311,7 +281,7 @@
     <div class="col">
       <div class="logo">🗝️</div>
       <h1>El Cofre de<br>los Portales</h1>
-      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">🏓 Ping-Pong</span><span class="chip">⚽ Fútbol</span><span class="chip">🧭 Safari</span></div>
+      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">🏓 Ping-Pong</span><span class="chip">⚽ Fútbol</span></div>
       <p class="tip">📷 Realidad aumentada sin marcador · 🌐 Solo u online</p>
     </div>
     <div class="col">
@@ -410,16 +380,6 @@
       <p id="pHint" class="hint">Desliza el dedo a los lados · gana quien llegue a 7</p>
     </div>
   </div>
-
-  <!-- Controles safari -->
-  <div id="parksControls" class="controls hidden">
-    <div class="card">
-      <div class="stats"><span id="kZone">🗺️ Elige un parque</span> · 📖 <span id="kAlbum">0</span>/12</div>
-      <p class="hint">Desliza el orbe hacia la criatura 🎯 Lanza cuando el anillo de color esté pequeño</p>
-    </div>
-    <button id="btnMap" class="ui-btn wide ui">🗺️ Mapa de parques</button>
-  </div>
-  <div id="parksMap" class="parks-map ui hidden"></div>
 
   <!-- ================= ESCENA A-FRAME ================= -->
   <a-scene
@@ -539,7 +499,7 @@
           <!-- Portales (aparecen al abrir el cofre) -->
           <a-entity id="portals" visible="false">
             <!-- Baloncesto -->
-            <a-entity id="portalBasket" position="-0.68 0.5 0.1" scale="0.001 0.001 0.001"
+            <a-entity id="portalBasket" position="-0.55 0.55 0.05" scale="0.001 0.001 0.001"
               animation__show="property: scale; to: 1 1 1; dur: 700; easing: easeOutElastic; startEvents: show">
               <a-entity animation__bob="property: position; from: 0 -0.03 0; to: 0 0.03 0; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine">
                 <a-sphere radius="0.12" color="#ffffff" material="roughness: 0.75" ptex="type: basketball"
@@ -557,7 +517,7 @@
             </a-entity>
 
             <!-- Ping-Pong -->
-            <a-entity id="portalPing" position="-0.23 0.82 -0.1" scale="0.001 0.001 0.001"
+            <a-entity id="portalPing" position="0 0.82 -0.12" scale="0.001 0.001 0.001"
               animation__show="property: scale; to: 1 1 1; dur: 700; delay: 100; easing: easeOutElastic; startEvents: show">
               <a-entity animation__bob="property: position; from: 0 0.03 0; to: 0 -0.03 0; dir: alternate; loop: true; dur: 1300; easing: easeInOutSine">
                 <a-entity rotation="0 0 -25" animation="property: rotation; from: 0 0 -25; to: 0 360 -25; loop: true; dur: 4500; easing: linear">
@@ -578,7 +538,7 @@
             </a-entity>
 
             <!-- Fútbol -->
-            <a-entity id="portalSoccer" position="0.23 0.82 -0.1" scale="0.001 0.001 0.001"
+            <a-entity id="portalSoccer" position="0.55 0.55 0.05" scale="0.001 0.001 0.001"
               animation__show="property: scale; to: 1 1 1; dur: 700; delay: 200; easing: easeOutElastic; startEvents: show">
               <a-entity animation__bob="property: position; from: 0 0.03 0; to: 0 -0.03 0; dir: alternate; loop: true; dur: 1200; easing: easeInOutSine">
                 <a-sphere radius="0.12" color="#ffffff" material="roughness: 0.55" ptex="type: soccer"
@@ -592,27 +552,6 @@
                   <a-entity canvas-text="text: FUTBOL; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
                 </a-entity>
                 <a-sphere class="portal-hit" data-game="soccer" radius="0.25" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
-              </a-entity>
-            </a-entity>
-
-            <!-- Safari de Parques -->
-            <a-entity id="portalParks" position="0.68 0.5 0.1" scale="0.001 0.001 0.001"
-              animation__show="property: scale; to: 1 1 1; dur: 700; delay: 300; easing: easeOutElastic; startEvents: show">
-              <a-entity animation__bob="property: position; from: 0 -0.03 0; to: 0 0.03 0; dir: alternate; loop: true; dur: 1100; easing: easeInOutSine">
-                <a-entity animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-                  <a-sphere radius="0.1" material="color: #00E5FF; opacity: 0.85; transparent: true; metalness: 0.3; roughness: 0.05"></a-sphere>
-                  <a-torus radius="0.102" radius-tubular="0.012" rotation="90 0 0" color="#FFC107" material="metalness: 1; roughness: 0.2"></a-torus>
-                  <a-sphere radius="0.035" material="shader: flat; color: #FFFFFF"></a-sphere>
-                </a-entity>
-                <a-torus radius="0.19" radius-tubular="0.012" color="#B388FF" material="metalness: 0.6; roughness: 0.3; emissive: #7C4DFF; emissiveIntensity: 0.7"
-                  animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 2500; easing: linear"></a-torus>
-                <a-sphere radius="0.17" material="shader: flat; color: #B388FF; opacity: 0.16; transparent: true; depthWrite: false"
-                  animation__pulse="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
-                <a-entity position="0 -0.27 0">
-                  <a-plane width="0.42" height="0.09" color="#7C4DFF" material="shader: flat; opacity: 0.85; transparent: true; side: double"></a-plane>
-                  <a-entity canvas-text="text: SAFARI; color: #FFFFFF; width: 1.1" position="0 0 0.002"></a-entity>
-                </a-entity>
-                <a-sphere class="portal-hit" data-game="parks" radius="0.25" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
               </a-entity>
             </a-entity>
           </a-entity>
@@ -784,30 +723,6 @@
           </a-entity>
         </a-entity>
 
-
-        <!-- ============ MINIJUEGO: SAFARI DE PARQUES ============ -->
-        <a-entity id="parksGame" visible="false">
-          <a-entity id="parksFocus" position="0 0.35 -1.5"></a-entity>
-          <a-entity shadow-catcher="opacity: 0.45" scale="7 7 7" position="0 0 -1.5"></a-entity>
-          <a-entity id="parkDecor"></a-entity>
-          <a-entity id="creatureRig" position="0 0 -1.6">
-            <a-ring radius-inner="0.32" radius-outer="0.36" rotation="-90 0 0" position="0 0.004 0" material="shader: flat; color: #FFFFFF; opacity: 0.5; transparent: true"></a-ring>
-            <a-entity id="creature" shadow="cast: true; receive: false"></a-entity>
-            <a-entity id="catchRing" position="0 0.3 0">
-              <a-entity position="0 0 0.3">
-                <a-ring radius-inner="0.42" radius-outer="0.445" material="shader: flat; color: #FFFFFF; opacity: 0.7; transparent: true; side: double"></a-ring>
-                <a-ring id="catchRingIn" radius-inner="0.4" radius-outer="0.44" material="shader: flat; color: #00E676; opacity: 0.9; transparent: true; side: double"></a-ring>
-              </a-entity>
-            </a-entity>
-            <a-entity id="cLabel" position="0 1.0 0"></a-entity>
-          </a-entity>
-          <!-- Orbe de captura -->
-          <a-entity id="orb" visible="false" shadow="cast: true; receive: false">
-            <a-sphere radius="0.045" material="color: #00E5FF; opacity: 0.85; transparent: true; metalness: 0.3; roughness: 0.05; emissive: #00B8D4; emissiveIntensity: 0.3"></a-sphere>
-            <a-torus radius="0.046" radius-tubular="0.006" rotation="90 0 0" color="#FFC107" material="metalness: 1; roughness: 0.2"></a-torus>
-            <a-sphere radius="0.015" material="shader: flat; color: #FFFFFF"></a-sphere>
-          </a-entity>
-        </a-entity>
         <!-- ============ MINIJUEGO: PING-PONG (mesa real) ============ -->
         <a-entity id="pingGame" position="0 0 -0.1" visible="false">
           <a-entity id="pingFocus" position="0 0.38 -0.05"></a-entity>
@@ -1267,7 +1182,7 @@
     };
     const STATUS_TOUCH = {
       chest: '👆 Toca el cofre para abrirlo',
-      menu:  '✨ Toca un portal: Baloncesto, Ping-Pong, Fútbol o Safari'
+      menu:  '✨ Toca un portal: Baloncesto, Ping-Pong o Fútbol'
     };
     let statusTimer = null;
     function setStatus(txt, keep) {
@@ -1321,8 +1236,7 @@
     const GAMES = {
       basket: { group: 'basketGame', controls: 'basketControls', reset: () => resetBasketBall(), hello: '🏀 ¡A encestar!', name: 'Baloncesto' },
       soccer: { group: 'soccerGame', controls: 'soccerControls', reset: () => resetSoccerBall(), hello: '⚽ ¡A meter gol!', name: 'Fútbol' },
-      ping:   { group: 'pingGame',   controls: 'pingControls',   reset: () => resetPingMatch(),  hello: '🏓 ¡A jugar ping-pong!', name: 'Ping-Pong' },
-      parks:  { group: 'parksGame',  controls: 'parksControls',  reset: () => enterParks(),      hello: '🧭 ¡Safari de Parques!', name: 'Safari de Parques' }
+      ping:   { group: 'pingGame',   controls: 'pingControls',   reset: () => resetPingMatch(),  hello: '🏓 ¡A jugar ping-pong!', name: 'Ping-Pong' }
     };
 
     function openChest(fromNet) {
@@ -1341,7 +1255,7 @@
       setTimeout(() => {
         if (G.mode !== 'menu') return;
         show($('portals'), true);
-        ['portalBasket', 'portalPing', 'portalSoccer', 'portalParks'].forEach(id => $(id).emit('show'));
+        ['portalBasket', 'portalPing', 'portalSoccer'].forEach(id => $(id).emit('show'));
         document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, true));
         refreshRaycaster();
         refreshStatus();
@@ -1395,7 +1309,6 @@
       updateCursor();
       endDuel(true);
       stopPenalties();
-      leaveParks();
       P.online = false;
       show($('menuGroup'), true);
       show($('portals'), true);
@@ -1921,549 +1834,6 @@
     }
 
     /* =========================================================
-       SAFARI DE PARQUES (estilo "caza de criaturas" en realidad aumentada)
-       California y Orlando (Florida). Criaturas originales.
-       Lanzas el orbe deslizando el dedo; el anillo que se encoge
-       da más probabilidad de captura si lanzas cuando está pequeño.
-       ========================================================= */
-    const RAR = {
-      comun: { label: 'Común', color: '#00E676', base: 0.72, pts: 20, w: 1 },
-      raro:  { label: 'Raro',  color: '#FFD54F', base: 0.48, pts: 50, w: 0.45 },
-      epico: { label: 'Épico', color: '#FF4081', base: 0.3,  pts: 100, w: 0.2 }
-    };
-    const CREATURES = {
-      ositoro:     { name: 'Ositoro',        emoji: '🐻', type: 'bear',     color: '#A0612B', accent: '#FFD54F', rar: 'comun' },
-      surfoca:     { name: 'Surfoca',        emoji: '🦭', type: 'seal',     color: '#9EA7B3', accent: '#29B6F6', rar: 'comun' },
-      pelicanejo:  { name: 'Pelicanejo',     emoji: '🐦', type: 'bird',     color: '#ECEFF1', accent: '#FFB300', rar: 'comun' },
-      amapolito:   { name: 'Amapolito',      emoji: '🌼', type: 'flower',   color: '#FF7043', accent: '#66BB6A', rar: 'comun' },
-      secuoyin:    { name: 'Secuoyín',       emoji: '🌲', type: 'tree',     color: '#8D4E2A', accent: '#2E7D32', rar: 'raro' },
-      ballenita:   { name: 'Ballenita Gris', emoji: '🐋', type: 'whale',    color: '#78909C', accent: '#CFD8DC', rar: 'epico' },
-      caimancito:  { name: 'Caimancito',     emoji: '🐊', type: 'gator',    color: '#558B2F', accent: '#DCE775', rar: 'comun' },
-      flamenquita: { name: 'Flamenquita',    emoji: '🦩', type: 'flamingo', color: '#F48FB1', accent: '#212121', rar: 'comun' },
-      naranjin:    { name: 'Naranjín',       emoji: '🍊', type: 'orange',   color: '#FB8C00', accent: '#43A047', rar: 'comun' },
-      manatin:     { name: 'Manatín',        emoji: '🌊', type: 'manatee',  color: '#90A4AE', accent: '#B0BEC5', rar: 'raro' },
-      cohetin:     { name: 'Cohetín',        emoji: '🚀', type: 'rocket',   color: '#ECEFF1', accent: '#E53935', rar: 'raro' },
-      chispa:      { name: 'Chispa',         emoji: '🎆', type: 'star',     color: '#FFEB3B', accent: '#FF4081', rar: 'epico' }
-    };
-    const REGIONS = {
-      california: { name: 'California', emoji: '🌴', zones: {
-        muelle:   { name: 'Muelle de Santa Mónica', emoji: '🎡', decor: ['water', 'pier', 'ferris', 'palms'], spawn: ['surfoca', 'pelicanejo'] },
-        secuoyas: { name: 'Bosque de Secuoyas',     emoji: '🌲', decor: ['redwoods'],                     spawn: ['ositoro', 'secuoyin'] },
-        valle:    { name: 'Valle de Amapolas',      emoji: '🌼', decor: ['hills', 'poppies'],              spawn: ['amapolito', 'ositoro'] },
-        bahia:    { name: 'Bahía de San Diego',     emoji: '⛵', decor: ['water', 'boat', 'palms'],        spawn: ['pelicanejo', 'surfoca', 'ballenita'] }
-      } },
-      orlando: { name: 'Orlando, Florida', emoji: '🎢', zones: {
-        lago:        { name: 'Lago de los Caimanes',  emoji: '🐊', decor: ['water', 'reeds', 'palms'], spawn: ['caimancito', 'flamenquita', 'manatin'] },
-        cohetes:     { name: 'Plataforma de Cohetes', emoji: '🚀', decor: ['launch', 'palms'],         spawn: ['cohetin', 'flamenquita'] },
-        atracciones: { name: 'Parque de Atracciones', emoji: '🏰', decor: ['castle', 'coaster'],       spawn: ['chispa', 'naranjin'] },
-        huerto:      { name: 'Huerto de Naranjas',    emoji: '🍊', decor: ['oranges'],                 spawn: ['naranjin', 'caimancito'] }
-      } }
-    };
-
-    // ---------- Criaturas hechas con figuras 3D ----------
-    function eyesHTML(y, z, dx, s) {
-      return `<a-sphere radius="${s}" position="${-dx} ${y} ${z}" color="#FFFFFF" material="roughness: 0.3"></a-sphere>
-        <a-sphere radius="${s * 0.55}" position="${-dx} ${y} ${z + s * 0.62}" color="#111111" material="roughness: 0.2"></a-sphere>
-        <a-sphere radius="${s * 0.18}" position="${-dx + s * 0.2} ${y + s * 0.25} ${z + s * 0.95}" color="#FFFFFF" material="shader: flat"></a-sphere>
-        <a-sphere radius="${s}" position="${dx} ${y} ${z}" color="#FFFFFF" material="roughness: 0.3"></a-sphere>
-        <a-sphere radius="${s * 0.55}" position="${dx} ${y} ${z + s * 0.62}" color="#111111" material="roughness: 0.2"></a-sphere>
-        <a-sphere radius="${s * 0.18}" position="${dx + s * 0.2} ${y + s * 0.25} ${z + s * 0.95}" color="#FFFFFF" material="shader: flat"></a-sphere>`;
-    }
-    function creatureHTML(def) {
-      const c = def.color, a = def.accent;
-      switch (def.type) {
-        case 'bear': return `
-          <a-sphere radius="0.2" position="0 0.2 0" color="${c}" material="roughness: 0.9"></a-sphere>
-          <a-sphere radius="0.12" position="0 0.2 0.1" color="${a}" material="roughness: 0.8"></a-sphere>
-          <a-sphere radius="0.14" position="0 0.45 0.02" color="${c}" material="roughness: 0.9"></a-sphere>
-          <a-sphere radius="0.05" position="-0.1 0.57 0" color="${c}"></a-sphere>
-          <a-sphere radius="0.05" position="0.1 0.57 0" color="${c}"></a-sphere>
-          <a-sphere radius="0.06" position="0 0.42 0.13" color="#E8C9A0"></a-sphere>
-          <a-sphere radius="0.022" position="0 0.45 0.19" color="#1a1a1a"></a-sphere>
-          ${eyesHTML(0.5, 0.12, 0.055, 0.026)}
-          <a-sphere radius="0.05" position="-0.1 0.04 0.08" color="${c}"></a-sphere>
-          <a-sphere radius="0.05" position="0.1 0.04 0.08" color="${c}"></a-sphere>`;
-        case 'seal': return `
-          <a-cylinder radius="0.11" height="0.02" scale="1 1 3" position="0 0.012 0" color="${a}" material="roughness: 0.3"></a-cylinder>
-          <a-sphere radius="0.17" scale="1 0.8 1.5" position="0 0.17 0" color="${c}" material="roughness: 0.4; metalness: 0.1"></a-sphere>
-          <a-sphere radius="0.12" position="0 0.33 0.16" color="${c}" material="roughness: 0.4"></a-sphere>
-          <a-sphere radius="0.045" position="0 0.3 0.27" color="#CFD8DC"></a-sphere>
-          <a-sphere radius="0.016" position="0 0.32 0.31" color="#1a1a1a"></a-sphere>
-          <a-box width="0.04" height="0.03" depth="0.14" position="-0.17 0.1 0.08" rotation="0 20 -30" color="${c}"></a-box>
-          <a-box width="0.04" height="0.03" depth="0.14" position="0.17 0.1 0.08" rotation="0 -20 30" color="${c}"></a-box>
-          ${eyesHTML(0.38, 0.24, 0.05, 0.022)}`;
-        case 'bird': return `
-          <a-cylinder radius="0.012" height="0.14" position="-0.05 0.07 0" color="${a}"></a-cylinder>
-          <a-cylinder radius="0.012" height="0.14" position="0.05 0.07 0" color="${a}"></a-cylinder>
-          <a-sphere radius="0.15" scale="1 1 1.3" position="0 0.28 0" color="${c}" material="roughness: 0.9"></a-sphere>
-          <a-box width="0.03" height="0.12" depth="0.24" position="-0.16 0.3 -0.02" rotation="0 0 12" color="#B0BEC5"></a-box>
-          <a-box width="0.03" height="0.12" depth="0.24" position="0.16 0.3 -0.02" rotation="0 0 -12" color="#B0BEC5"></a-box>
-          <a-sphere radius="0.09" position="0 0.5 0.08" color="${c}"></a-sphere>
-          <a-cone radius-bottom="0.035" radius-top="0.008" height="0.24" rotation="90 0 0" position="0 0.47 0.25" color="${a}"></a-cone>
-          <a-sphere radius="0.045" position="0 0.43 0.2" color="${a}" material="opacity: 0.9"></a-sphere>
-          ${eyesHTML(0.53, 0.14, 0.04, 0.018)}`;
-        case 'flower': {
-          let pet = '';
-          for (let i = 0; i < 8; i++) {
-            const t = i * Math.PI / 4;
-            pet += `<a-sphere radius="0.07" scale="1 1 0.4" position="${(Math.cos(t) * 0.14).toFixed(3)} ${(0.42 + Math.sin(t) * 0.14).toFixed(3)} 0" color="${c}"></a-sphere>`;
-          }
-          return `
-          <a-cylinder radius="0.016" height="0.32" position="0 0.16 0" color="${a}"></a-cylinder>
-          <a-sphere radius="0.06" scale="1.6 0.3 0.8" position="-0.07 0.12 0" rotation="0 0 25" color="${a}"></a-sphere>
-          <a-sphere radius="0.06" scale="1.6 0.3 0.8" position="0.07 0.18 0" rotation="0 0 -25" color="${a}"></a-sphere>
-          ${pet}
-          <a-sphere radius="0.095" scale="1 1 0.6" position="0 0.42 0.02" color="#FFD54F"></a-sphere>
-          ${eyesHTML(0.44, 0.06, 0.035, 0.018)}`;
-        }
-        case 'tree': return `
-          <a-cylinder radius="0.12" height="0.4" position="0 0.2 0" color="${c}" material="roughness: 1" ptex="type: wood; repeat: 0.5 1; color: ${c}"></a-cylinder>
-          <a-cone radius-bottom="0.3" radius-top="0.02" height="0.3" position="0 0.5 0" color="${a}" material="roughness: 0.9"></a-cone>
-          <a-cone radius-bottom="0.22" radius-top="0.02" height="0.26" position="0 0.68 0" color="${a}"></a-cone>
-          <a-cone radius-bottom="0.14" radius-top="0.01" height="0.2" position="0 0.84 0" color="${a}"></a-cone>
-          <a-cylinder radius="0.025" height="0.18" position="-0.17 0.22 0" rotation="0 0 60" color="${c}"></a-cylinder>
-          <a-cylinder radius="0.025" height="0.18" position="0.17 0.22 0" rotation="0 0 -60" color="${c}"></a-cylinder>
-          ${eyesHTML(0.27, 0.11, 0.05, 0.026)}`;
-        case 'whale': return `
-          <a-sphere radius="0.2" scale="1 0.85 1.7" position="0 0.22 0" color="${c}" material="roughness: 0.5"></a-sphere>
-          <a-sphere radius="0.17" scale="1 0.6 1.5" position="0 0.15 0.04" color="${a}"></a-sphere>
-          <a-box width="0.3" height="0.03" depth="0.12" position="0 0.24 -0.4" rotation="0 0 0" color="${c}"></a-box>
-          <a-box width="0.05" height="0.02" depth="0.18" position="-0.2 0.15 0.08" rotation="0 25 -25" color="${c}"></a-box>
-          <a-box width="0.05" height="0.02" depth="0.18" position="0.2 0.15 0.08" rotation="0 -25 25" color="${c}"></a-box>
-          <a-cone radius-bottom="0.03" radius-top="0.08" height="0.16" position="0 0.5 0.1" material="color: #B3E5FC; opacity: 0.7; transparent: true"
-            animation="property: scale; from: 1 0.6 1; to: 1 1.3 1; dir: alternate; loop: true; dur: 500"></a-cone>
-          ${eyesHTML(0.27, 0.27, 0.12, 0.022)}`;
-        case 'gator': return `
-          <a-box width="0.24" height="0.13" depth="0.56" position="0 0.09 0" color="${c}" material="roughness: 0.8"></a-box>
-          <a-box width="0.2" height="0.04" depth="0.5" position="0 0.03 0.02" color="${a}"></a-box>
-          <a-box width="0.18" height="0.09" depth="0.28" position="0 0.09 0.4" color="${c}"></a-box>
-          <a-box width="0.16" height="0.02" depth="0.24" position="0 0.06 0.42" color="#FFFFFF"></a-box>
-          <a-cone radius-bottom="0.09" radius-top="0.01" height="0.4" rotation="-90 0 0" position="0 0.08 -0.47" color="${c}"></a-cone>
-          <a-box width="0.06" height="0.07" depth="0.06" position="-0.13 0.035 0.18" color="${c}"></a-box>
-          <a-box width="0.06" height="0.07" depth="0.06" position="0.13 0.035 0.18" color="${c}"></a-box>
-          <a-box width="0.06" height="0.07" depth="0.06" position="-0.13 0.035 -0.16" color="${c}"></a-box>
-          <a-box width="0.06" height="0.07" depth="0.06" position="0.13 0.035 -0.16" color="${c}"></a-box>
-          ${eyesHTML(0.17, 0.3, 0.06, 0.03)}`;
-        case 'flamingo': return `
-          <a-cylinder radius="0.01" height="0.38" position="-0.03 0.19 0" color="#E91E63"></a-cylinder>
-          <a-cylinder radius="0.01" height="0.38" position="0.03 0.19 0" color="#E91E63"></a-cylinder>
-          <a-sphere radius="0.14" scale="1 0.8 1.3" position="0 0.45 0" color="${c}" material="roughness: 0.9"></a-sphere>
-          <a-cylinder radius="0.024" height="0.28" position="0 0.62 0.09" rotation="15 0 0" color="${c}"></a-cylinder>
-          <a-sphere radius="0.06" position="0 0.78 0.12" color="${c}"></a-sphere>
-          <a-cone radius-bottom="0.022" radius-top="0.006" height="0.1" rotation="120 0 0" position="0 0.75 0.2" color="${a}"></a-cone>
-          ${eyesHTML(0.8, 0.16, 0.03, 0.014)}`;
-        case 'orange': return `
-          <a-sphere radius="0.18" position="0 0.2 0" color="${c}" material="roughness: 0.6" ptex="type: rubber; color: ${c}"></a-sphere>
-          <a-cylinder radius="0.012" height="0.06" position="0 0.4 0" color="#5D4037"></a-cylinder>
-          <a-sphere radius="0.06" scale="1.8 0.3 0.8" position="0.06 0.42 0" rotation="0 0 -20" color="${a}"></a-sphere>
-          <a-sphere radius="0.03" scale="1 0.6 0.4" position="-0.1 0.18 0.15" color="#F48FB1"></a-sphere>
-          <a-sphere radius="0.03" scale="1 0.6 0.4" position="0.1 0.18 0.15" color="#F48FB1"></a-sphere>
-          ${eyesHTML(0.25, 0.15, 0.055, 0.025)}
-          <a-sphere radius="0.035" position="-0.07 0.02 0.04" color="#5D4037"></a-sphere>
-          <a-sphere radius="0.035" position="0.07 0.02 0.04" color="#5D4037"></a-sphere>`;
-        case 'manatee': return `
-          <a-sphere radius="0.21" scale="1 0.8 1.4" position="0 0.17 0" color="${c}" material="roughness: 0.6"></a-sphere>
-          <a-sphere radius="0.13" position="0 0.21 0.28" color="${a}" material="roughness: 0.6"></a-sphere>
-          <a-sphere radius="0.06" position="0 0.17 0.39" color="#ECEFF1"></a-sphere>
-          <a-box width="0.06" height="0.02" depth="0.16" position="-0.2 0.1 0.1" rotation="0 30 -25" color="${c}"></a-box>
-          <a-box width="0.06" height="0.02" depth="0.16" position="0.2 0.1 0.1" rotation="0 -30 25" color="${c}"></a-box>
-          <a-cylinder radius="0.14" height="0.02" position="0 0.15 -0.38" rotation="90 0 0" color="${c}"></a-cylinder>
-          ${eyesHTML(0.28, 0.37, 0.07, 0.02)}`;
-        case 'rocket': return `
-          <a-cone radius-bottom="0.07" radius-top="0.01" height="0.14" rotation="180 0 0" position="0 0.07 0" material="color: #FF9100; emissive: #FF6D00; emissiveIntensity: 1; opacity: 0.9; transparent: true"
-            animation="property: scale; from: 1 0.7 1; to: 1.2 1.3 1.2; dir: alternate; loop: true; dur: 120"></a-cone>
-          <a-cylinder radius="0.12" height="0.46" position="0 0.36 0" color="${c}" material="metalness: 0.6; roughness: 0.3"></a-cylinder>
-          <a-cone radius-bottom="0.12" radius-top="0.005" height="0.2" position="0 0.69 0" color="${a}" material="metalness: 0.4; roughness: 0.3"></a-cone>
-          <a-box width="0.04" height="0.14" depth="0.12" position="-0.13 0.2 0" color="${a}"></a-box>
-          <a-box width="0.04" height="0.14" depth="0.12" position="0.13 0.2 0" color="${a}"></a-box>
-          <a-box width="0.12" height="0.14" depth="0.04" position="0 0.2 -0.13" color="${a}"></a-box>
-          <a-circle radius="0.075" position="0 0.42 0.121" color="#81D4FA" material="metalness: 0.3; roughness: 0.1"></a-circle>
-          ${eyesHTML(0.43, 0.13, 0.03, 0.02)}`;
-        case 'star': {
-          let sp = '';
-          for (let i = 0; i < 6; i++) {
-            const t = i * Math.PI / 3;
-            sp += `<a-cone radius-bottom="0.05" radius-top="0" height="0.14" position="${(Math.cos(t) * 0.17).toFixed(3)} ${(0.34 + Math.sin(t) * 0.17).toFixed(3)} 0" rotation="0 0 ${(t * 180 / Math.PI - 90).toFixed(1)}" color="${i % 2 ? a : c}" material="emissive: ${i % 2 ? a : c}; emissiveIntensity: 0.6"></a-cone>`;
-          }
-          return `
-          <a-entity animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 6000; easing: linear" position="0 0.34 0">
-            <a-entity position="0 -0.34 0">${sp}</a-entity>
-          </a-entity>
-          <a-sphere radius="0.14" position="0 0.34 0" color="${c}" material="emissive: ${c}; emissiveIntensity: 0.5; roughness: 0.3"></a-sphere>
-          <a-sphere radius="0.24" position="0 0.34 0" material="shader: flat; color: ${a}; opacity: 0.15; transparent: true; depthWrite: false"
-            animation="property: scale; from: 0.9 0.9 0.9; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 400"></a-sphere>
-          ${eyesHTML(0.37, 0.12, 0.045, 0.02)}`;
-        }
-      }
-      return '';
-    }
-
-    // ---------- Decoración de cada zona (tamaño real, en metros) ----------
-    function palmHTML(x, z, h) {
-      h = h || 1.8;
-      let leaves = '';
-      for (let i = 0; i < 6; i++) leaves += `<a-box width="0.9" height="0.02" depth="0.2" position="${(Math.cos(i) * 0.38).toFixed(2)} ${h - 0.08} ${(Math.sin(i) * 0.38).toFixed(2)}" rotation="0 ${(-i * 57.3).toFixed(1)} -18" color="#2E7D32" material="roughness: 0.9; side: double"></a-box>`;
-      return `<a-entity position="${x} 0 ${z}" shadow="cast: true">
-        <a-cylinder radius="0.07" height="${h}" position="0 ${h / 2} 0" rotation="0 0 4" color="#8D6E63" ptex="type: wood; repeat: 0.5 3; color: #8D6E63"></a-cylinder>
-        ${leaves}
-        <a-sphere radius="0.06" position="0.05 ${h - 0.15} 0.05" color="#5D4037"></a-sphere></a-entity>`;
-    }
-    const DECOR = {
-      water: () => `<a-plane width="6" height="2.6" rotation="-90 0 0" position="0 0.004 -3.4" material="color: #1E88E5; opacity: 0.55; transparent: true; metalness: 0.4; roughness: 0.15"
-          animation="property: material.opacity; from: 0.45; to: 0.6; dir: alternate; loop: true; dur: 2000"></a-plane>`,
-      palms: () => palmHTML(-1.9, -2.2, 2.0) + palmHTML(2.1, -2.6, 1.7) + palmHTML(-2.6, -3.2, 2.4),
-      pier: () => `<a-entity position="1.6 0 -2.2" shadow="cast: true; receive: true">
-          <a-box width="0.9" height="0.06" depth="3" position="0 0.35 0" color="#ffffff" ptex="type: wood; repeat: 1 3"></a-box>
-          <a-cylinder radius="0.05" height="0.38" position="-0.4 0.17 1.3" color="#5D4037"></a-cylinder>
-          <a-cylinder radius="0.05" height="0.38" position="0.4 0.17 1.3" color="#5D4037"></a-cylinder>
-          <a-cylinder radius="0.05" height="0.38" position="-0.4 0.17 -1.3" color="#5D4037"></a-cylinder>
-          <a-cylinder radius="0.05" height="0.38" position="0.4 0.17 -1.3" color="#5D4037"></a-cylinder>
-          <a-box width="0.04" height="0.4" depth="3" position="-0.43 0.58 0" color="#ECEFF1"></a-box></a-entity>`,
-      ferris: () => {
-        let cab = '';
-        for (let i = 0; i < 8; i++) {
-          const t = i * Math.PI / 4;
-          cab += `<a-cylinder radius="0.01" height="0.9" position="${(Math.cos(t) * 0.45).toFixed(2)} ${(Math.sin(t) * 0.45).toFixed(2)} 0" rotation="0 0 ${(t * 180 / Math.PI + 90).toFixed(1)}" color="#ECEFF1"></a-cylinder>
-            <a-box width="0.14" height="0.12" depth="0.12" position="${(Math.cos(t) * 0.9).toFixed(2)} ${(Math.sin(t) * 0.9).toFixed(2)} 0" color="${['#E53935', '#FDD835', '#1E88E5', '#43A047'][i % 4]}"></a-box>`;
-        }
-        return `<a-entity position="-2.0 0 -3.6" shadow="cast: true">
-          <a-cylinder radius="0.03" height="1.4" position="-0.35 0.65 0" rotation="0 0 -14" color="#B0BEC5"></a-cylinder>
-          <a-cylinder radius="0.03" height="1.4" position="0.35 0.65 0" rotation="0 0 14" color="#B0BEC5"></a-cylinder>
-          <a-entity position="0 1.3 0" animation="property: rotation; to: 0 0 360; loop: true; dur: 22000; easing: linear">
-            <a-torus radius="0.9" radius-tubular="0.02" color="#ECEFF1" material="metalness: 0.6; roughness: 0.3"></a-torus>
-            <a-torus radius="0.6" radius-tubular="0.012" color="#FF4081" material="emissive: #FF4081; emissiveIntensity: 0.6"></a-torus>
-            ${cab}
-          </a-entity></a-entity>`;
-      },
-      boat: () => `<a-entity position="1.8 0 -3.6" animation="property: rotation; from: 0 0 -3; to: 0 0 3; dir: alternate; loop: true; dur: 1800; easing: easeInOutSine" shadow="cast: true">
-          <a-box width="0.5" height="0.14" depth="1.2" position="0 0.07 0" color="#FAFAFA"></a-box>
-          <a-box width="0.52" height="0.04" depth="1.22" position="0 0.13 0" color="#1565C0"></a-box>
-          <a-cylinder radius="0.015" height="1.1" position="0 0.7 0" color="#8D6E63"></a-cylinder>
-          <a-triangle vertex-a="0 1.2 0" vertex-b="0 0.25 0" vertex-c="0 0.25 0.5" material="color: #FFFFFF; side: double"></a-triangle></a-entity>`,
-      redwoods: () => {
-        let t = '';
-        [[-1.6, -2.2, 3.2], [1.7, -2.4, 3.6], [-2.6, -3.6, 4], [2.6, -3.4, 3.4], [0.2, -4.2, 4.4], [-0.9, -3.4, 3]].forEach(([x, z, h]) => {
-          t += `<a-entity position="${x} 0 ${z}" shadow="cast: true">
-            <a-cylinder radius="${(h * 0.05).toFixed(2)}" height="${h}" position="0 ${h / 2} 0" color="#ffffff" ptex="type: wood; repeat: 0.6 4; color: #7B3F1F"></a-cylinder>
-            <a-cone radius-bottom="${(h * 0.22).toFixed(2)}" radius-top="0.02" height="${(h * 0.45).toFixed(2)}" position="0 ${(h * 0.72).toFixed(2)} 0" color="#2E5E2E" material="roughness: 0.95"></a-cone>
-            <a-cone radius-bottom="${(h * 0.17).toFixed(2)}" radius-top="0.02" height="${(h * 0.35).toFixed(2)}" position="0 ${(h * 0.95).toFixed(2)} 0" color="#356B35"></a-cone></a-entity>`;
-        });
-        return t;
-      },
-      hills: () => `<a-sphere radius="2.2" scale="1.6 0.35 1" position="-2.4 -0.2 -5" color="#7CB342" material="roughness: 1"></a-sphere>
-          <a-sphere radius="2.4" scale="1.5 0.42 1" position="2.6 -0.2 -5.6" color="#8BC34A" material="roughness: 1"></a-sphere>`,
-      poppies: () => {
-        let f = '';
-        for (let i = 0; i < 26; i++) {
-          const x = rnd(-2.4, 2.4), z = rnd(-3.6, -1.2);
-          if (Math.abs(x) < 0.7 && z > -2.4) continue;
-          f += `<a-cylinder radius="0.006" height="0.2" position="${x.toFixed(2)} 0.1 ${z.toFixed(2)}" color="#558B2F"></a-cylinder>
-            <a-sphere radius="0.04" scale="1 0.5 1" position="${x.toFixed(2)} 0.21 ${z.toFixed(2)}" color="#FF6D00"></a-sphere>`;
-        }
-        return f;
-      },
-      reeds: () => {
-        let r = '';
-        for (let i = 0; i < 18; i++) {
-          const x = (i % 2 ? 1 : -1) * rnd(1.2, 2.6), z = rnd(-3.2, -1.8), h = rnd(0.4, 0.8);
-          r += `<a-cylinder radius="0.008" height="${h.toFixed(2)}" position="${x.toFixed(2)} ${(h / 2).toFixed(2)} ${z.toFixed(2)}" rotation="0 0 ${rnd(-10, 10).toFixed(0)}" color="#689F38"></a-cylinder>
-            <a-cylinder radius="0.016" height="0.1" position="${x.toFixed(2)} ${(h - 0.03).toFixed(2)} ${z.toFixed(2)}" color="#6D4C41"></a-cylinder>`;
-        }
-        return r;
-      },
-      launch: () => `<a-entity position="2.0 0 -3.4" shadow="cast: true">
-          <a-box width="0.5" height="0.1" depth="0.5" position="0 0.05 0" color="#607D8B"></a-box>
-          <a-box width="0.12" height="3" depth="0.12" position="-0.4 1.5 0" color="#E53935" material="metalness: 0.5"></a-box>
-          <a-box width="0.4" height="0.04" depth="0.04" position="-0.2 2.2 0" color="#E53935"></a-box>
-          <a-box width="0.4" height="0.04" depth="0.04" position="-0.2 1.2 0" color="#E53935"></a-box>
-          <a-cylinder radius="0.16" height="2.2" position="0 1.2 0" color="#FAFAFA" material="metalness: 0.5; roughness: 0.3"></a-cylinder>
-          <a-cone radius-bottom="0.16" radius-top="0.01" height="0.5" position="0 2.55 0" color="#ECEFF1"></a-cone>
-          <a-box width="0.06" height="0.4" depth="0.3" position="0.17 0.3 0" color="#263238"></a-box>
-          <a-box width="0.06" height="0.4" depth="0.3" position="-0.17 0.3 0" color="#263238"></a-box></a-entity>
-          <a-entity position="-2.2 0 -3.0">
-            <a-cylinder radius="0.02" height="1.6" position="0 0.8 0" color="#B0BEC5"></a-cylinder>
-            <a-plane width="0.5" height="0.3" position="0.26 1.42 0" material="color: #1565C0; side: double"></a-plane></a-entity>`,
-      castle: () => {
-        const tower = (x, z, h, col) => `<a-cylinder radius="0.22" height="${h}" position="${x} ${h / 2} ${z}" color="#ECEFF1" material="roughness: 0.7"></a-cylinder>
-          <a-cone radius-bottom="0.28" radius-top="0.01" height="0.6" position="${x} ${h + 0.3} ${z}" color="${col}"></a-cone>`;
-        return `<a-entity position="0 0 -4.4" shadow="cast: true">
-          <a-box width="2.6" height="1.1" depth="0.4" position="0 0.55 0" color="#E0E0E0" material="roughness: 0.8"></a-box>
-          <a-box width="0.5" height="0.7" depth="0.42" position="0 0.35 0.01" color="#5D4037"></a-box>
-          ${tower(-1.3, 0, 1.8, '#7E57C2')}${tower(1.3, 0, 1.8, '#7E57C2')}${tower(-0.55, -0.3, 2.4, '#29B6F6')}${tower(0.55, -0.3, 2.4, '#29B6F6')}${tower(0, -0.5, 3.0, '#EC407A')}
-          <a-entity position="0 3.6 0">
-            <a-sphere radius="0.05" material="shader: flat; color: #FFEB3B" animation="property: position; from: 0 0 0; to: -0.6 0.5 0; dur: 1400; loop: true"></a-sphere>
-            <a-sphere radius="0.05" material="shader: flat; color: #FF4081" animation="property: position; from: 0 0 0; to: 0.6 0.4 0; dur: 1600; loop: true"></a-sphere>
-            <a-sphere radius="0.05" material="shader: flat; color: #00E5FF" animation="property: position; from: 0 0 0; to: 0 0.7 0; dur: 1200; loop: true"></a-sphere>
-          </a-entity></a-entity>`;
-      },
-      coaster: () => `<a-entity position="2.3 0 -2.8" rotation="0 -30 0" shadow="cast: true">
-          <a-torus radius="0.8" radius-tubular="0.04" position="0 0.9 0" rotation="0 90 0" color="#E53935" material="metalness: 0.5; roughness: 0.3"></a-torus>
-          <a-cylinder radius="0.03" height="0.9" position="0 0.45 0.4" color="#B0BEC5"></a-cylinder>
-          <a-cylinder radius="0.03" height="0.9" position="0 0.45 -0.4" color="#B0BEC5"></a-cylinder>
-          <a-entity position="0 0.9 0" animation="property: rotation; to: 360 0 0; loop: true; dur: 2600; easing: linear">
-            <a-box width="0.14" height="0.1" depth="0.22" position="0 -0.8 0" color="#FDD835"></a-box></a-entity></a-entity>`,
-      oranges: () => {
-        let t = '';
-        [[-1.6, -2.2], [1.7, -2.4], [-2.4, -3.4], [2.5, -3.6], [-0.9, -3.8], [1.0, -4.0]].forEach(([x, z]) => {
-          let fr = '';
-          for (let i = 0; i < 7; i++) fr += `<a-sphere radius="0.05" position="${rnd(-0.38, 0.38).toFixed(2)} ${rnd(1.0, 1.55).toFixed(2)} ${rnd(-0.38, 0.38).toFixed(2)}" color="#FB8C00"></a-sphere>`;
-          t += `<a-entity position="${x} 0 ${z}" shadow="cast: true">
-            <a-cylinder radius="0.07" height="0.9" position="0 0.45 0" color="#6D4C41"></a-cylinder>
-            <a-sphere radius="0.55" position="0 1.25 0" color="#388E3C" material="roughness: 0.95"></a-sphere>${fr}</a-entity>`;
-        });
-        return t;
-      }
-    };
-
-    // ---------- Estado del safari ----------
-    const K = {
-      region: 'california', zone: null, id: null,
-      state: 'idle', pos: new THREE.Vector3(), vel: new THREE.Vector3(), t: 0,
-      ringT: 0, ringF: 1, throws: 0, cx: 0, cz: -1.6, scale: 0, scaleTarget: 1, hop: 0,
-      seq: 0, album: {}, GRAV: 7, CY: 0.3
-    };
-    const _kp = new THREE.Vector3(), _kf = new THREE.Vector3(), _ku = new THREE.Vector3(), _kr = new THREE.Vector3(), _kq = new THREE.Vector3();
-    function loadAlbum() { try { K.album = JSON.parse(localStorage.getItem('arCofreAlbum') || '{}'); } catch (e) { K.album = {}; } }
-    function saveAlbum() { try { localStorage.setItem('arCofreAlbum', JSON.stringify(K.album)); } catch (e) {} }
-    function albumCount() { return Object.keys(CREATURES).filter(id => K.album[id]).length; }
-    function updateParksHud() {
-      const z = K.zone ? REGIONS[K.region].zones[K.zone] : null;
-      $('kZone').textContent = z ? `${z.emoji} ${z.name}` : '🗺️ Elige un parque';
-      $('kAlbum').textContent = albumCount();
-    }
-
-    // Cámara expresada dentro del safari (sirve con y sin tarjeta)
-    function camInParks() {
-      const g = $('parksGame').object3D, cam = $('cam').object3D;
-      g.updateMatrixWorld(true); cam.updateMatrixWorld(true);
-      cam.getWorldPosition(_kp);
-      const q = new THREE.Quaternion(); cam.getWorldQuaternion(q);
-      _kf.set(0, 0, -1).applyQuaternion(q).add(_kp);
-      _ku.set(0, 1, 0).applyQuaternion(q).add(_kp);
-      g.worldToLocal(_kp); g.worldToLocal(_kf); g.worldToLocal(_ku);
-      _kf.sub(_kp).normalize(); _ku.sub(_kp).normalize();
-      _kr.crossVectors(_kf, _ku).normalize();
-      return _kp;
-    }
-    // El orbe "en la mano": abajo al centro de la pantalla
-    function orbHand(out) {
-      camInParks();
-      return out.copy(_kp).addScaledVector(_kf, 0.8).addScaledVector(_ku, -0.3);
-    }
-
-    function enterParks() {
-      loadAlbum();
-      K.state = 'idle';
-      $('orb').object3D.visible = false;
-      updateParksHud();
-      openParksMap();
-    }
-    function openParksMap() {
-      const map = $('parksMap');
-      let html = `<div class="map-card ui"><h2>🗺️ Safari de Parques</h2>
-        <p class="small">📖 Álbum: ${albumCount()}/${Object.keys(CREATURES).length} criaturas</p>
-        <div class="mode-row">`;
-      for (const rid in REGIONS) html += `<button class="mode-btn ${rid === K.region ? 'active' : ''}" data-region="${rid}">${REGIONS[rid].emoji} ${REGIONS[rid].name}</button>`;
-      html += `</div><div class="zone-grid">`;
-      const R = REGIONS[K.region];
-      for (const zid in R.zones) {
-        const z = R.zones[zid];
-        const who = z.spawn.map(id => K.album[id] ? `${CREATURES[id].emoji}` : '❔').join(' ');
-        html += `<button class="zone-btn" data-zone="${zid}"><span class="ze">${z.emoji}</span><b>${z.name}</b><span class="zw">${who}</span></button>`;
-      }
-      html += `</div><div class="album">`;
-      for (const id in CREATURES) {
-        const c = CREATURES[id], got = K.album[id];
-        html += `<span class="alb ${got ? 'got' : ''}" title="${got ? c.name : '???'}">${got ? c.emoji : '❔'}<small>${got ? c.name + (got > 1 ? ' x' + got : '') : '???'}</small><i style="background:${RAR[c.rar].color}"></i></span>`;
-      }
-      html += `</div>${K.zone ? '<button id="btnCloseMap" class="ui-btn wide">✕ Volver a la zona</button>' : ''}</div>`;
-      map.innerHTML = html;
-      map.classList.remove('hidden');
-      map.querySelectorAll('[data-region]').forEach(b => b.addEventListener('click', () => { K.region = b.dataset.region; sfx.tap(); openParksMap(); }));
-      map.querySelectorAll('[data-zone]').forEach(b => b.addEventListener('click', () => selectZone(K.region, b.dataset.zone)));
-      const cl = $('btnCloseMap'); if (cl) cl.addEventListener('click', () => map.classList.add('hidden'));
-    }
-    function selectZone(region, zone) {
-      K.region = region; K.zone = zone;
-      $('parksMap').classList.add('hidden');
-      const z = REGIONS[region].zones[zone];
-      $('parkDecor').innerHTML = z.decor.map(d => DECOR[d] ? DECOR[d]() : '').join('');
-      updateParksHud();
-      toast(`${z.emoji} ${z.name}`);
-      sfx.portal();
-      registrarInteraccion('Zona del safari', z.name);
-      spawnCreature();
-      setTimeout(recenter, 60);
-    }
-    function pickCreature() {
-      const list = REGIONS[K.region].zones[K.zone].spawn;
-      const total = list.reduce((s, id) => s + RAR[CREATURES[id].rar].w, 0);
-      let r = Math.random() * total;
-      for (const id of list) { r -= RAR[CREATURES[id].rar].w; if (r <= 0) return id; }
-      return list[0];
-    }
-    function spawnCreature() {
-      K.seq++;
-      K.id = pickCreature();
-      const def = CREATURES[K.id], rar = RAR[def.rar];
-      K.cx = rnd(-0.45, 0.45); K.cz = rnd(-1.9, -1.4);
-      K.throws = 0; K.scale = 0.01; K.scaleTarget = 1; K.ringT = 0;
-      $('creatureRig').object3D.position.set(K.cx, 0, K.cz);
-      $('creature').innerHTML = creatureHTML(def);
-      $('catchRingIn').setAttribute('material', 'color', rar.color);
-      $('cLabel').innerHTML = `<a-entity canvas-text="text: ${def.name}  ·  ${rar.label}; color: ${rar.color}; width: 2.2"></a-entity>`;
-      $('creatureRig').object3D.visible = true;
-      K.state = 'ready';
-      $('orb').object3D.visible = true;
-      orbHand(K.pos); $('orb').object3D.position.copy(K.pos);
-      setStatus(`${def.emoji} ¡Apareció ${def.name}! (${rar.label}) Desliza el orbe hacia arriba para lanzarlo`);
-      if (def.rar !== 'comun') sfx.join();
-    }
-    // Arrastrar: el orbe sigue un poco al dedo
-    function parksDrag(d) {
-      if (K.state !== 'ready') return;
-      K.drag = d;
-    }
-    function parksRelease(d) {
-      K.drag = null;
-      if (K.state !== 'ready') return;
-      if (d.dy < 30) return;
-      throwOrb(0.7 + d.norm * 0.6, d.side * 1.4);
-    }
-    function throwOrb(p, lat) {
-      orbHand(K.pos);
-      const T = 0.75;
-      _kq.set(K.cx, K.CY, K.cz).addScaledVector(_kr, lat);
-      K.vel.subVectors(_kq, K.pos).multiplyScalar(1 / T);
-      K.vel.y += 0.5 * K.GRAV * T;
-      K.vel.multiplyScalar(p);
-      K.state = 'flying'; K.t = 0; K.throws++;
-      K.throwF = K.ringF;
-      sfx.shoot();
-    }
-    function onCatchHit() {
-      const def = CREATURES[K.id], rar = RAR[def.rar];
-      const f = K.throwF;
-      let bonus = 1, txt = '👍 ¡Bien!';
-      if (f < 0.35) { bonus = 1.8; txt = '🌟 ¡EXCELENTE!'; }
-      else if (f < 0.65) { bonus = 1.3; txt = '✨ ¡Genial!'; }
-      const chance = Math.min(0.95, rar.base * bonus);
-      toast(txt);
-      K.state = 'absorb';
-      K.scaleTarget = 0.01;
-      K.pos.set(K.cx, K.CY, K.cz);
-      sfx.rim();
-      const seq = K.seq;
-      const perShake = Math.pow(chance, 1 / 3);
-      let shakes = 0;
-      const shake = () => {
-        if (seq !== K.seq || G.mode !== 'parks') return;
-        if (Math.random() > perShake) { escape(); return; }
-        shakes++;
-        K.shakeT = 0;
-        tone(500 + shakes * 120, 0.08, 'sine', 0.08);
-        if (shakes >= 3) setTimeout(() => { if (seq === K.seq) caught(); }, 650);
-        else setTimeout(shake, 750);
-      };
-      setTimeout(() => { if (seq !== K.seq) return; K.state = 'shake'; K.pos.y = 0.05; setTimeout(shake, 450); }, 450);
-    }
-    function caught() {
-      const def = CREATURES[K.id], rar = RAR[def.rar];
-      K.state = 'done';
-      const first = !K.album[K.id];
-      K.album[K.id] = (K.album[K.id] || 0) + 1; saveAlbum();
-      const pts = rar.pts + (first ? 30 : 0);
-      addPoints(pts);
-      toast(`${def.emoji} ¡Capturaste a ${def.name}! +${pts}` + hit());
-      if (first) setTimeout(() => toast('📖 ¡Nueva en tu álbum!'), 1400);
-      sfx.score();
-      burst($('parksGame'), K.cx, 0.2, K.cz, 34, 0.5);
-      popText($('parksGame'), K.cx, 0.6, K.cz, '+' + pts, '#FFD54F');
-      registrarInteraccion('Captura', def.name);
-      updateParksHud();
-      const seq = ++K.seq;
-      setTimeout(() => { if (seq === K.seq && G.mode === 'parks') { $('orb').object3D.visible = false; spawnCreature(); } }, 2300);
-    }
-    function escape() {
-      const def = CREATURES[K.id];
-      K.scaleTarget = 1;
-      K.state = 'escaped';
-      sfx.miss(); missed();
-      if (K.throws >= 4) {
-        toast(`💨 ¡${def.name} huyó!`);
-        K.scaleTarget = 0.01;
-        const seq = ++K.seq;
-        setTimeout(() => { if (seq === K.seq && G.mode === 'parks') spawnCreature(); }, 1500);
-      } else {
-        toast(`😮 ¡${def.name} se escapó!`);
-        setTimeout(() => { if (K.state === 'escaped') K.state = 'ready'; }, 700);
-      }
-    }
-    function updateParks(dt) {
-      if (!K.zone || K.state === 'idle') return;
-      K.ringT += dt;
-      K.hop += dt;
-      // Anillo que se encoge (más pequeño = más fácil capturar)
-      K.ringF = 1 - ((K.ringT % 1.8) / 1.8);
-      const ring = $('catchRing').object3D;
-      ring.visible = K.state === 'ready' || K.state === 'flying';
-      $('catchRingIn').object3D.scale.setScalar(0.3 + 0.7 * K.ringF);
-      // La criatura mira hacia ti, salta y respira
-      camInParks();
-      const look = Math.atan2(_kp.x - K.cx, _kp.z - K.cz);
-      const rig = $('creatureRig').object3D;
-      K.scale += (K.scaleTarget - K.scale) * Math.min(1, dt * 8);
-      const cr = $('creature').object3D;
-      cr.scale.setScalar(Math.max(0.001, K.scale));
-      cr.rotation.y = look + Math.sin(K.hop * 1.3) * 0.25;
-      cr.position.y = K.state === 'ready' ? Math.abs(Math.sin(K.hop * 3)) * 0.06 : 0;
-      ring.rotation.y = look; $('cLabel').object3D.rotation.y = look;
-      $('cLabel').object3D.visible = K.scale > 0.5;
-      // Criaturas raras se mueven de lado
-      if (K.state === 'ready' && CREATURES[K.id] && CREATURES[K.id].rar !== 'comun') {
-        rig.position.x = K.cx + Math.sin(K.hop * 0.9) * 0.35;
-      } else rig.position.x = K.cx;
-      const orb = $('orb').object3D;
-      if (K.state === 'ready' || K.state === 'escaped') {
-        orb.visible = true;
-        orbHand(K.pos);
-        if (K.drag) K.pos.addScaledVector(_ku, Math.min(0.08, K.drag.norm * 0.1)).addScaledVector(_kr, K.drag.side * 0.1);
-        orb.position.copy(K.pos);
-        orb.rotation.y += dt * 2;
-        return;
-      }
-      if (K.state === 'flying') {
-        const cx = rig.position.x;
-        for (let i = 0; i < 4; i++) {
-          const h = dt / 4;
-          K.pos.addScaledVector(K.vel, h); K.vel.y -= K.GRAV * h;
-          if (Math.hypot(K.pos.x - cx, K.pos.y - K.CY, K.pos.z - K.cz) < 0.3) { K.cx = cx; onCatchHit(); break; }
-          if (K.pos.y < 0.045) { K.pos.y = 0.045; K.vel.y = Math.abs(K.vel.y) * 0.4; K.vel.x *= 0.7; K.vel.z *= 0.7; }
-        }
-        K.t += dt;
-        orb.position.copy(K.pos);
-        orb.rotation.x += dt * 12;
-        if (K.state === 'flying' && K.t > 1.6) {
-          toast('🙃 ¡Fallaste! Inténtalo otra vez');
-          missed();
-          K.state = 'ready';
-        }
-        return;
-      }
-      if (K.state === 'absorb' || K.state === 'shake') {
-        orb.position.copy(K.pos);
-        K.shakeT = (K.shakeT || 0) + dt;
-        orb.rotation.set(0, 0, K.state === 'shake' && K.shakeT < 0.4 ? Math.sin(K.shakeT * 30) * 0.45 : 0);
-      }
-      if (K.state === 'done') orb.visible = false;
-    }
-    function leaveParks() {
-      K.seq++;
-      K.state = 'idle';
-      $('parksMap').classList.add('hidden');
-    }
-
-    /* =========================================================
        PENALES ONLINE (Fútbol): uno patea y el otro tapa; cambian cada tiro
        ========================================================= */
     const PEN = { on: false, role: 'shoot', mine: 0, theirs: 0, kicks: 0, MAX: 10, myKx: 0, kxNet: 0, lastSend: 0 };
@@ -2829,15 +2199,13 @@
       menu:   { scale: 1.6, nearZ: 0.0,  d: 3.0, markerZ: 0.0 },    // cofre de 80 cm
       ping:   { scale: 2.0, nearZ: 0.68, d: 1.0, markerZ: -0.1 },   // mesa oficial 1.52 x 2.74 m
       soccer: { scale: 3.0, nearZ: 0.4,  d: 2.0, markerZ: -0.3, mScale: 2.2 },
-      basket: { scale: 2.6, nearZ: 0.3,  d: 1.6, markerZ: -0.35, mScale: 2.2 },
-      parks:  { scale: 1.0, nearZ: 0.0,  d: 0.6, markerZ: -1.6, mScale: 1.0 }    // en metros: la criatura a ~2.2 m
+      basket: { scale: 2.6, nearZ: 0.3,  d: 1.6, markerZ: -0.35, mScale: 2.2 }
     };
     function layout() { return LAYOUT[GAMES[G.mode] ? G.mode : 'menu']; }
     function focusEl() {
       if (G.mode === 'basket') return $('basketFocus');
       if (G.mode === 'soccer') return $('soccerFocus');
       if (G.mode === 'ping') return $('pingFocus');
-      if (G.mode === 'parks') return $('parksFocus');
       return $('chestFocus');
     }
     const _ws = new THREE.Vector3();
@@ -2862,7 +2230,7 @@
       } else {
         const sc = L.scale;
         let d = L.d;
-        if (!GAMES[G.mode] && window.innerHeight > window.innerWidth) d = 5.2;   // vertical: caben los 3 portales
+        if (!GAMES[G.mode] && window.innerHeight > window.innerWidth) d = 4.2;   // vertical: caben los 3 portales
         w.scale.setScalar(sc);
         w.position.set(0, -PREFS.height, -d - L.nearZ * sc);
         updateShadows(sc);
@@ -2986,7 +2354,6 @@
         if (G.mode === 'basket') updateBasket(dt);
         else if (G.mode === 'soccer') updateSoccer(dt);
         else if (G.mode === 'ping') updatePing(dt);
-        else if (G.mode === 'parks') updateParks(dt);
         updateDuel();
       }
     });
@@ -3055,7 +2422,6 @@
       // Botones HTML
       $('btnMenu').addEventListener('click', () => backToMenu(false));
       $('btnCenter').addEventListener('click', () => { recenter(); sfx.tap(); toast('🎯 Centrado'); });
-      $('btnMap').addEventListener('click', () => { sfx.tap(); openParksMap(); });
       $('btnSound').addEventListener('click', () => {
         sfxInit(); SFX.on = !SFX.on;
         $('btnSound').textContent = SFX.on ? '🔊' : '🔇';
@@ -3076,8 +2442,7 @@
       document.querySelectorAll('.swatch').forEach(s =>
         s.addEventListener('click', () => { PREFS.color = s.dataset.color; applyPrefs(); registrarInteraccion('Cambiar color', PREFS.color); }));
       $('btnReset').addEventListener('click', () => {
-        try { localStorage.removeItem('arCofreRecord'); localStorage.removeItem('arCofreInteracciones'); localStorage.removeItem('arCofreAlbum'); } catch (e) {}
-        K.album = {};
+        try { localStorage.removeItem('arCofreRecord'); localStorage.removeItem('arCofreInteracciones'); } catch (e) {}
         G.record = 0; G.score = 0;
         $('record').textContent = 0; $('score').textContent = 0;
         B.shots = B.hits = S.shots = S.goals = 0;
@@ -3099,7 +2464,7 @@
         if (e.target.closest('.ui')) return;
         if (G.mode === 'ping') { paddleFromX(e.clientX); return; }
         if (G.mode === 'soccer' && PEN.on && PEN.role === 'keep') { keeperFromX(e.clientX); return; }
-        if (G.mode === 'basket' || G.mode === 'soccer' || G.mode === 'parks') sw = { x: e.clientX, y: e.clientY, mode: G.mode };
+        if (G.mode === 'basket' || G.mode === 'soccer') sw = { x: e.clientX, y: e.clientY, mode: G.mode };
       });
       window.addEventListener('pointermove', (e) => {
         if (e.target.closest && e.target.closest('.ui')) return;
@@ -3111,7 +2476,6 @@
         if (G.mode === 'soccer' && S.state === 'ready' && Math.hypot(d.dx, d.dy) > 12) {
           S.dragging = true; S.pow = d.norm; S.aim = clamp(-d.side * 1.3, -0.6, 0.6);
         }
-        if (G.mode === 'parks') parksDrag(d);
       });
       window.addEventListener('pointerup', (e) => {
         if (!sw) return;
@@ -3125,8 +2489,6 @@
           if (Math.hypot(d.dx, d.dy) < 12) kick(0, 0.45);            // toque simple: tiro recto
           else if (d.dy > 10) kick(clamp(-d.side * 1.3, -0.6, 0.6), d.norm);
           else S.dragging = false;
-        } else if (mode === 'parks') {
-          parksRelease(d);
         }
       });
       window.addEventListener('pointercancel', () => { sw = null; hideTraj(); S.dragging = false; });
