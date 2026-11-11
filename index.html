@@ -268,6 +268,14 @@
     #cardQr svg { width: 110px; height: 110px; background: #fff; border-radius: 8px; }
 
     .traj-info { color: #FFEA00; font-weight: 800; font-size: clamp(12px, 1.9vmax, 15px); text-align: center; margin: 4px 0; }
+
+    /* ---------- Tarjeta de controles de los juegos nuevos ---------- */
+    .gcard { left: 50%; transform: translateX(-50%); bottom: var(--sb); align-items: center; width: min(94vw, 460px); }
+    .gcard .card { padding: 8px 14px; }
+    @media (orientation: landscape) {
+      .gcard { left: var(--sl); transform: none; width: min(34vw, 300px); }
+      .gcard .hint { font-size: 11px; }
+    }
   </style>
 </head>
 <body>
@@ -281,7 +289,7 @@
     <div class="col">
       <div class="logo">🗝️</div>
       <h1>El Cofre de<br>los Portales</h1>
-      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">🏓 Ping-Pong</span><span class="chip">⚽ Fútbol</span></div>
+      <div class="chips"><span class="chip">🏀 Baloncesto</span><span class="chip">🏓 Ping-Pong</span><span class="chip">⚽ Fútbol</span><span class="chip">🎳 Bolos</span><span class="chip">⛳ Minigolf</span><span class="chip">🎯 Dardos</span><span class="chip">🏐 Voleibol</span><span class="chip">🏒 Air hockey</span><span class="chip">🎪 Aros</span></div>
       <p class="tip">📷 Realidad aumentada sin marcador · 🌐 Solo u online</p>
     </div>
     <div class="col">
@@ -931,6 +939,64 @@
         return c;
       },
       // Goma de raqueta
+      // Bola de bolos (mármol con 3 agujeros)
+      marble(color) {
+        const W = 512, Hh = 256, c = makeCanvas(W, Hh), g = c.getContext('2d');
+        g.fillStyle = color || '#1565C0'; g.fillRect(0, 0, W, Hh);
+        for (let i = 0; i < 40; i++) {
+          g.strokeStyle = `rgba(255,255,255,${rnd(0.05, 0.25)})`; g.lineWidth = rnd(2, 8);
+          g.beginPath(); let x = rnd(0, W), y = rnd(0, Hh); g.moveTo(x, y);
+          for (let k = 0; k < 6; k++) { x += rnd(-60, 60); y += rnd(-30, 30); g.quadraticCurveTo(x + rnd(-30, 30), y + rnd(-30, 30), x, y); }
+          g.stroke();
+        }
+        g.fillStyle = '#0a0a0a';
+        [[120, 60], [150, 60], [135, 95]].forEach(([x, y]) => { g.beginPath(); g.ellipse(x, y, 9, 13, 0, 0, Math.PI * 2); g.fill(); });
+        return c;
+      },
+      // Diana de dardos
+      dartboard() {
+        const S = 1024, c = makeCanvas(S, S), g = c.getContext('2d'), cx = S / 2, R = S / 2;
+        const ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+        g.fillStyle = '#111'; g.fillRect(0, 0, S, S);
+        const wedge = (r0, r1, i, col) => {
+          const a0 = (i * 18 - 9 - 90) * Math.PI / 180, a1 = (i * 18 + 9 - 90) * Math.PI / 180;
+          g.beginPath(); g.arc(cx, cx, r1, a0, a1); g.arc(cx, cx, r0, a1, a0, true); g.closePath();
+          g.fillStyle = col; g.fill();
+        };
+        for (let i = 0; i < 20; i++) {
+          const even = i % 2 === 0;
+          wedge(R * 0.094, R * 0.55, i, even ? '#1b1b1b' : '#F3E5C0');
+          wedge(R * 0.55, R * 0.62, i, even ? '#C62828' : '#2E7D32');
+          wedge(R * 0.62, R * 0.88, i, even ? '#1b1b1b' : '#F3E5C0');
+          wedge(R * 0.88, R * 0.95, i, even ? '#C62828' : '#2E7D32');
+        }
+        g.strokeStyle = '#B0BEC5'; g.lineWidth = 3;
+        for (let i = 0; i < 20; i++) { const a = (i * 18 - 9 - 90) * Math.PI / 180; g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 0.094, cx + Math.sin(a) * R * 0.094); g.lineTo(cx + Math.cos(a) * R * 0.95, cx + Math.sin(a) * R * 0.95); g.stroke(); }
+        [0.094, 0.55, 0.62, 0.88, 0.95].forEach(r => { g.beginPath(); g.arc(cx, cx, R * r, 0, Math.PI * 2); g.stroke(); });
+        g.fillStyle = '#2E7D32'; g.beginPath(); g.arc(cx, cx, R * 0.094, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#C62828'; g.beginPath(); g.arc(cx, cx, R * 0.037, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#FFFFFF'; g.font = 'bold 34px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        for (let i = 0; i < 20; i++) { const a = (i * 18 - 90) * Math.PI / 180; g.fillText(String(ORDER[i]), cx + Math.cos(a) * R * 0.975, cx + Math.sin(a) * R * 0.975); }
+        return c;
+      },
+      // Arena de playa
+      sand() {
+        const c = makeCanvas(512, 512), g = c.getContext('2d');
+        g.fillStyle = '#E8CF9B'; g.fillRect(0, 0, 512, 512);
+        dots(g, 512, 512, 30000, ['#D9BC82', '#F2DDB0', '#C9A86A', '#FFF1D0'], 1, 2.5);
+        for (let i = 0; i < 30; i++) { g.strokeStyle = 'rgba(160,120,60,0.12)'; g.lineWidth = rnd(2, 5); g.beginPath(); const y = rnd(0, 512); g.moveTo(0, y); g.bezierCurveTo(170, y + rnd(-20, 20), 340, y + rnd(-20, 20), 512, y); g.stroke(); }
+        return c;
+      },
+      // Balón de voleibol
+      volley() {
+        const W = 1024, Hh = 512, c = makeCanvas(W, Hh), g = c.getContext('2d');
+        const cols = ['#FFD54F', '#FFFFFF', '#1E88E5'];
+        for (let i = 0; i < 6; i++) { g.fillStyle = cols[i % 3]; g.fillRect(i * W / 6, 0, W / 6 + 1, Hh); }
+        g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 4;
+        for (let i = 0; i <= 6; i++) { g.beginPath(); g.moveTo(i * W / 6, 0); g.bezierCurveTo(i * W / 6 + 60, Hh / 3, i * W / 6 - 60, 2 * Hh / 3, i * W / 6, Hh); g.stroke(); }
+        g.beginPath(); g.moveTo(0, Hh / 2); g.lineTo(W, Hh / 2); g.stroke();
+        return c;
+      },
       rubber(color) {
         const c = makeCanvas(256, 256), g = c.getContext('2d');
         g.fillStyle = color || '#C62828'; g.fillRect(0, 0, 256, 256);
@@ -1182,7 +1248,7 @@
     };
     const STATUS_TOUCH = {
       chest: '👆 Toca el cofre para abrirlo',
-      menu:  '✨ Toca un portal: Baloncesto, Ping-Pong o Fútbol'
+      menu:  '✨ Toca un portal para elegir uno de los 9 juegos'
     };
     let statusTimer = null;
     function setStatus(txt, keep) {
@@ -1255,7 +1321,7 @@
       setTimeout(() => {
         if (G.mode !== 'menu') return;
         show($('portals'), true);
-        ['portalBasket', 'portalPing', 'portalSoccer'].forEach(id => $(id).emit('show'));
+        document.querySelectorAll('.portal').forEach(el => el.emit('show'));
         document.querySelectorAll('.portal-hit').forEach(el => setClickable(el, true));
         refreshRaycaster();
         refreshStatus();
@@ -1284,9 +1350,10 @@
       setClickable($('sballHit'), false);
       updateCursor();
       P.online = online() && game === 'ping';
+      if (cfg.vs) cfg.vs.online = online();
       if (online()) {
         if (game === 'soccer') startPenalties();
-        else if (game === 'basket') startDuel(game);
+        else if (DUEL_GAMES.includes(game)) startDuel(game);
       }
       $('pHint').textContent = P.online ? `Tú: raqueta roja (cerca) · ${NET.rivalName}: raqueta negra (al fondo)` : 'Desliza el dedo a los lados · gana quien llegue a 7';
       cfg.reset();
@@ -1309,6 +1376,7 @@
       updateCursor();
       endDuel(true);
       stopPenalties();
+      Object.values(GAMES).forEach(c => { if (c.vs) c.vs.online = false; });
       P.online = false;
       show($('menuGroup'), true);
       show($('portals'), true);
@@ -1833,6 +1901,1036 @@
       updatePingHud();
     }
 
+    /* =====================================================================
+       6 JUEGOS NUEVOS: Bolos, Minigolf, Dardos, Voleibol, Air hockey, Aros
+       Todos en metros reales (1 unidad = 1 m) sobre tu piso.
+       Turnos (bolos, golf, dardos, aros): online = duelo de 60 s.
+       Air hockey y voleibol: contra la máquina u online 1 contra 1.
+       ===================================================================== */
+    const V3 = THREE.Vector3;
+    const hypot = Math.hypot;
+    function H(tag, attrs, inner) {
+      let a = '';
+      for (const k in attrs) a += ` ${k}="${attrs[k]}"`;
+      return `<${tag}${a}>${inner || ''}</${tag}>`;
+    }
+    // Puntos guía (bolitas) reutilizables
+    function makeDots(parentId, n, color, r) {
+      const box = $(parentId);
+      for (let i = 0; i < n; i++) box.insertAdjacentHTML('beforeend', `<a-sphere radius="${r || 0.012}" material="shader: flat; color: ${color}; opacity: 0.9; transparent: true"></a-sphere>`);
+      box.object3D.visible = false;
+      return box;
+    }
+    function setDots(box, pts) {
+      const ch = box.children, n = ch.length;
+      if (!pts || pts.length < 2) { box.object3D.visible = false; return; }
+      for (let k = 0; k < n; k++) {
+        const q = pts[Math.round(k * (pts.length - 1) / (n - 1))];
+        ch[k].object3D.position.set(q[0], q[1], q[2]);
+      }
+      box.object3D.visible = true;
+    }
+    function setStats(id, html) { const el = $(id); if (el) el.innerHTML = html; }
+    // Círculo contra caja (rebote 2D en el plano del piso)
+    function circleBox(o, r, bx, bz, hw, hd, k) {
+      const cx = clamp(o.x, bx - hw, bx + hw), cz = clamp(o.z, bz - hd, bz + hd);
+      let dx = o.x - cx, dz = o.z - cz, d = hypot(dx, dz);
+      if (d >= r) return false;
+      if (d < 1e-6) { dx = 0; dz = o.z > bz ? 1 : -1; d = 1; }
+      const nx = dx / d, nz = dz / d;
+      o.x += nx * (r - d); o.z += nz * (r - d);
+      const vn = o.vx * nx + o.vz * nz;
+      if (vn < 0) { o.vx -= (1 + k) * vn * nx; o.vz -= (1 + k) * vn * nz; }
+      return true;
+    }
+
+    /* ======================= 🎳 BOLOS ======================= */
+    const BW = {
+      R: 0.11, PR: 0.06, LANE: 0.52, END: -5.1, FRAMES: 5,
+      ball: { x: 0, z: 0.3, vx: 0, vz: 0 }, pins: [], state: 'ready', t: 0,
+      frame: 1, roll: 1, score: 0, standingBefore: 10, aim: 0, pow: 0.5, drag: false
+    };
+    const PIN_POS = [];
+    for (let row = 0; row < 4; row++) for (let i = 0; i <= row; i++) PIN_POS.push([(i - row / 2) * 0.3, -4.2 - row * 0.26]);
+    function bowlScene() {
+      let pins = '';
+      PIN_POS.forEach((p, i) => {
+        pins += `<a-entity class="pin" id="pin${i}" position="${p[0]} 0 ${p[1]}" shadow="cast: true; receive: false">
+          <a-entity class="pinBody">
+            <a-cylinder radius="0.045" height="0.2" position="0 0.1 0" color="#FAFAFA" material="roughness: 0.25"></a-cylinder>
+            <a-sphere radius="0.06" scale="1 1.1 1" position="0 0.17 0" color="#FAFAFA" material="roughness: 0.25"></a-sphere>
+            <a-cylinder radius="0.031" height="0.1" position="0 0.27 0" color="#FAFAFA" material="roughness: 0.25"></a-cylinder>
+            <a-cylinder radius="0.033" height="0.012" position="0 0.27 0" color="#D32F2F"></a-cylinder>
+            <a-cylinder radius="0.033" height="0.012" position="0 0.3 0" color="#D32F2F"></a-cylinder>
+            <a-sphere radius="0.036" position="0 0.34 0" color="#FAFAFA" material="roughness: 0.25"></a-sphere>
+          </a-entity></a-entity>`;
+      });
+      let arrows = '';
+      for (let i = -3; i <= 3; i++) arrows += `<a-triangle vertex-a="0 0 -0.06" vertex-b="-0.025 0 0.02" vertex-c="0.025 0 0.02" position="${i * 0.12} 0.004 -1.4" material="shader: flat; color: #6D4C41; side: double"></a-triangle>`;
+      return `<a-entity id="bowlGame" visible="false">
+        <a-entity id="bowlFocus" position="0 0.2 -2.4"></a-entity>
+        <a-plane width="1.05" height="6.2" rotation="-90 0 0" position="0 0.001 -2.1" color="#ffffff" material="roughness: 0.25; metalness: 0.05" ptex="type: parquet; repeat: 0.6 3.2" shadow="receive: true"></a-plane>
+        <a-box width="0.2" height="0.03" depth="6.2" position="-0.62 -0.01 -2.1" color="#37474F" material="metalness: 0.5; roughness: 0.4"></a-box>
+        <a-box width="0.2" height="0.03" depth="6.2" position="0.62 -0.01 -2.1" color="#37474F" material="metalness: 0.5; roughness: 0.4"></a-box>
+        <a-box width="0.04" height="0.12" depth="6.2" position="-0.74 0.06 -2.1" color="#263238"></a-box>
+        <a-box width="0.04" height="0.12" depth="6.2" position="0.74 0.06 -2.1" color="#263238"></a-box>
+        <a-box width="1.05" height="0.004" depth="0.02" position="0 0.003 0.05" color="#B71C1C"></a-box>
+        ${arrows}
+        <!-- Fondo de la pista -->
+        <a-box width="1.6" height="0.8" depth="0.1" position="0 0.4 -5.4" color="#1A237E" material="roughness: 0.7"></a-box>
+        <a-entity canvas-text="text: STRIKE!; color: #FFEA00; width: 3" position="0 0.62 -5.34"></a-entity>
+        <a-box width="1.6" height="0.04" depth="0.12" position="0 0.8 -5.35" material="shader: flat; color: #FF2E88"></a-box>
+        ${pins}
+        <a-entity id="bowlDots"></a-entity>
+        <a-sphere id="bowlBall" radius="0.11" position="0 0.11 0.3" color="#ffffff" material="roughness: 0.15; metalness: 0.2" ptex="type: marble; color: #1565C0" shadow="cast: true; receive: false"></a-sphere>
+      </a-entity>`;
+    }
+    function bowlResetPins(all) {
+      BW.pins.forEach((p, i) => {
+        if (all) { p.x = PIN_POS[i][0]; p.z = PIN_POS[i][1]; p.down = false; p.gone = false; p.tilt = 0; }
+        if (p.down) p.gone = true;
+        p.vx = p.vz = 0;
+        p.el.object3D.visible = !p.gone;
+      });
+      bowlDrawPins();
+    }
+    function bowlDrawPins() {
+      BW.pins.forEach(p => {
+        const o = p.el.object3D;
+        o.position.set(p.x, 0, p.z);
+        o.rotation.set(p.tilt * Math.cos(p.dir), 0, -p.tilt * Math.sin(p.dir));
+      });
+    }
+    function bowlNewGame() {
+      BW.frame = 1; BW.roll = 1; BW.score = 0;
+      if (!BW.pins.length) PIN_POS.forEach((p, i) => BW.pins.push({ el: $('pin' + i), x: p[0], z: p[1], vx: 0, vz: 0, down: false, gone: false, tilt: 0, dir: 0 }));
+      bowlResetPins(true);
+      bowlReady();
+    }
+    function bowlReady() {
+      BW.state = 'ready'; BW.t = 0;
+      Object.assign(BW.ball, { x: 0, z: 0.3, vx: 0, vz: 0 });
+      $('bowlBall').object3D.visible = true;
+      BW.standingBefore = BW.pins.filter(p => !p.down).length;
+      bowlStats();
+    }
+    function bowlStats() {
+      setStats('bowlStats', `🎳 Cuadro ${BW.frame}/${BW.FRAMES} · Tiro ${BW.roll} · Pinos de pie: ${BW.pins.filter(p => !p.down).length} · Puntos ${BW.score}`);
+    }
+    function bowlAim(d) {
+      BW.aim = clamp(d.side * 0.9, -0.35, 0.35); BW.pow = d.norm;
+      const pts = [];
+      const sp = 3 + 4 * BW.pow, vx = Math.sin(BW.aim) * sp, vz = -Math.cos(BW.aim) * sp;
+      let x = 0, z = 0.3;
+      for (let i = 0; i < 40 && z > -4.1; i++) { x += vx * 0.03; z += vz * 0.03; if (Math.abs(x) > BW.LANE) break; pts.push([x, 0.02, z]); }
+      setDots($('bowlDots'), pts);
+    }
+    function bowlThrow() {
+      if (BW.state !== 'ready') return;
+      $('bowlDots').object3D.visible = false;
+      const sp = 3 + 4 * BW.pow;
+      BW.ball.vx = Math.sin(BW.aim) * sp; BW.ball.vz = -Math.cos(BW.aim) * sp;
+      BW.state = 'rolling'; BW.t = 0; BW.gutter = false;
+      tone(90, 0.9, 'sawtooth', 0.05, 0, 0.8);
+    }
+    function bowlKnock(p, vx, vz) {
+      if (!p.down) { p.down = true; p.dir = Math.atan2(vx, -vz); tone(rnd(700, 1100), 0.06, 'square', 0.05); }
+      p.vx += vx; p.vz += vz;
+    }
+    function bowlStep(h) {
+      const b = BW.ball;
+      b.x += b.vx * h; b.z += b.vz * h;
+      if (!BW.gutter && Math.abs(b.x) > BW.LANE) { BW.gutter = true; b.vx = 0; b.x = Math.sign(b.x) * 0.62; }
+      if (!BW.gutter) {
+        BW.pins.forEach(p => {
+          if (p.gone) return;
+          const dx = p.x - b.x, dz = p.z - b.z, d = hypot(dx, dz);
+          if (d < BW.R + BW.PR && d > 1e-6) {
+            const nx = dx / d, nz = dz / d;
+            const sp = hypot(b.vx, b.vz);
+            bowlKnock(p, nx * sp * 0.9 + b.vx * 0.3, nz * sp * 0.9 + b.vz * 0.3);
+            p.x = b.x + nx * (BW.R + BW.PR); p.z = b.z + nz * (BW.R + BW.PR);
+            b.vx *= 0.93; b.vz *= 0.93; b.vx -= nx * 0.25;
+          }
+        });
+      }
+      // Pinos que se mueven tumban a otros
+      BW.pins.forEach(p => {
+        if (p.gone || hypot(p.vx, p.vz) < 0.15) return;
+        BW.pins.forEach(q => {
+          if (q === p || q.gone) return;
+          const dx = q.x - p.x, dz = q.z - p.z, d = hypot(dx, dz);
+          if (d < BW.PR * 2.1 && d > 1e-6) {
+            const nx = dx / d, nz = dz / d, sp = hypot(p.vx, p.vz);
+            bowlKnock(q, nx * sp * 0.7, nz * sp * 0.7);
+            p.vx *= 0.6; p.vz *= 0.6;
+          }
+        });
+      });
+      BW.pins.forEach(p => {
+        if (p.gone) return;
+        p.x += p.vx * h; p.z += p.vz * h;
+        const f = Math.exp(-2.5 * h); p.vx *= f; p.vz *= f;
+        if (p.down) p.tilt = Math.min(Math.PI / 2, p.tilt + h * 7);
+        if (Math.abs(p.x) > 0.68 || p.z < -5.25) { p.gone = true; p.el.object3D.visible = false; }
+      });
+    }
+    function updateBowl(dt) {
+      if (BW.state === 'ready') {
+        $('bowlBall').object3D.position.set(BW.ball.x, 0.11, BW.ball.z);
+        return;
+      }
+      BW.t += dt;
+      const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
+      for (let i = 0; i < steps; i++) bowlStep(h);
+      const bo = $('bowlBall').object3D;
+      bo.position.set(BW.ball.x, BW.gutter ? 0.07 : 0.11, BW.ball.z);
+      bo.rotation.x -= BW.ball.vz * dt / BW.R;
+      if (BW.ball.z < BW.END) bo.visible = false;
+      bowlDrawPins();
+      if (BW.state === 'rolling' && (BW.ball.z < BW.END || BW.t > 4.5)) { BW.state = 'settle'; BW.t = 0; }
+      if (BW.state === 'settle' && BW.t > 1.3) bowlEndRoll();
+    }
+    function bowlEndRoll() {
+      BW.state = 'wait';
+      const standing = BW.pins.filter(p => !p.down).length;
+      const fell = BW.standingBefore - standing;
+      let pts = fell * 2;
+      if (BW.gutter && fell === 0) { toast('😬 ¡Al canal!'); sfx.miss(); missed(); }
+      if (standing === 0 && BW.roll === 1) { pts += 20; toast('🎳 ¡STRIKE! +' + pts + hit()); sfx.score(); burst($('bowlGame'), 0, 0.4, -4.4, 40, 0.6); }
+      else if (standing === 0) { pts += 10; toast('✨ ¡SPARE! +' + pts + hit()); sfx.score(); burst($('bowlGame'), 0, 0.4, -4.4, 26, 0.5); }
+      else if (fell > 0) { toast(`🎳 ${fell} pino${fell > 1 ? 's' : ''} +${pts}`); sfx.bounce(); }
+      if (pts > 0) { addPoints(pts); duelPoint(pts); BW.score += pts; registrarInteraccion('Bolos', `${fell} pinos`); }
+      setTimeout(() => {
+        if (G.mode !== 'bowl') return;
+        if (standing === 0 || BW.roll === 2) {
+          BW.frame++; BW.roll = 1;
+          if (BW.frame > BW.FRAMES) {
+            toast(`🏁 Partida terminada: ${BW.score} puntos`);
+            setTimeout(() => { if (G.mode === 'bowl') bowlNewGame(); }, 1800);
+            return;
+          }
+          bowlResetPins(true);
+        } else { BW.roll = 2; bowlResetPins(false); }
+        bowlReady();
+      }, 1100);
+    }
+
+    /* ======================= ⛳ MINIGOLF ======================= */
+    const GOLF_HOLES = [
+      { name: 'Hoyo 1 · Calentamiento', start: [0, 0.2], hole: [0.25, -3.2], walls: [[-0.25, -1.3, 0.12, 0.12], [0.3, -2.0, 0.12, 0.12]], mill: null },
+      { name: 'Hoyo 2 · El molino', start: [0, 0.2], hole: [0, -3.3], walls: [[-0.4, -1.9, 0.22, 0.05], [0.4, -1.9, 0.22, 0.05]], mill: [0, -1.9, 0.22] },
+      { name: 'Hoyo 3 · El zigzag', start: [-0.35, 0.2], hole: [0.35, -3.3], walls: [[0.15, -1.0, 0.47, 0.05], [-0.15, -2.2, 0.47, 0.05]], mill: [0.3, -2.75, 0.18] }
+    ];
+    const GF = { R: 0.03, ball: { x: 0, z: 0, vx: 0, vz: 0 }, hole: 0, strokes: 0, total: 0, state: 'ready', aim: 0, pow: 0.5, millA: 0, sink: 0 };
+    function golfScene() {
+      return `<a-entity id="golfGame" visible="false">
+        <a-entity id="golfFocus" position="0 0.1 -1.6"></a-entity>
+        <a-plane width="1.3" height="4.0" rotation="-90 0 0" position="0 0.002 -1.55" color="#ffffff" material="roughness: 0.9" ptex="type: grass; repeat: 0.6 1.2; color: green" shadow="receive: true"></a-plane>
+        <a-box width="0.06" height="0.08" depth="4.06" position="-0.68 0.04 -1.55" color="#ffffff" ptex="type: wood; repeat: 0.2 3"></a-box>
+        <a-box width="0.06" height="0.08" depth="4.06" position="0.68 0.04 -1.55" color="#ffffff" ptex="type: wood; repeat: 0.2 3"></a-box>
+        <a-box width="1.42" height="0.08" depth="0.06" position="0 0.04 0.45" color="#ffffff" ptex="type: wood; repeat: 1 0.2"></a-box>
+        <a-box width="1.42" height="0.08" depth="0.06" position="0 0.04 -3.55" color="#ffffff" ptex="type: wood; repeat: 1 0.2"></a-box>
+        <a-entity id="golfWalls" shadow="cast: true; receive: false"></a-entity>
+        <a-entity id="golfMill" visible="false" shadow="cast: true">
+          <a-box width="0.16" height="0.4" depth="0.16" position="0 0.2 -0.1" color="#ECEFF1"></a-box>
+          <a-cone radius-bottom="0.13" radius-top="0.01" height="0.18" position="0 0.49 -0.1" color="#C62828"></a-cone>
+          <a-entity id="golfBlades" position="0 0.3 0.0">
+            <a-box width="0.5" height="0.05" depth="0.01" color="#8D6E63"></a-box>
+            <a-box width="0.05" height="0.5" depth="0.01" color="#8D6E63"></a-box>
+          </a-entity>
+          <a-entity id="golfSweep" position="0 0.025 0.02"><a-box width="0.44" height="0.05" depth="0.03" color="#6D4C41"></a-box></a-entity>
+        </a-entity>
+        <a-entity id="golfHole">
+          <a-circle radius="0.055" rotation="-90 0 0" position="0 0.004 0" color="#111111" material="shader: flat"></a-circle>
+          <a-cylinder radius="0.006" height="0.6" position="0 0.3 0" color="#ECEFF1"></a-cylinder>
+          <a-plane width="0.16" height="0.1" position="0.08 0.55 0" material="color: #FF1744; side: double"
+            animation="property: rotation; from: 0 -12 0; to: 0 12 0; dir: alternate; loop: true; dur: 700; easing: easeInOutSine"></a-plane>
+        </a-entity>
+        <a-entity id="golfDots"></a-entity>
+        <a-sphere id="golfBall" radius="0.03" color="#FFFFFF" material="roughness: 0.4" shadow="cast: true; receive: false"></a-sphere>
+      </a-entity>`;
+    }
+    function golfLoadHole(i) {
+      GF.hole = i; GF.strokes = 0;
+      const L = GOLF_HOLES[i];
+      $('golfWalls').innerHTML = L.walls.map(w => `<a-box width="${w[2] * 2}" height="0.08" depth="${w[3] * 2}" position="${w[0]} 0.04 ${w[1]}" color="#ffffff" ptex="type: wood; repeat: 0.5 0.2"></a-box>`).join('');
+      $('golfMill').object3D.visible = !!L.mill;
+      if (L.mill) $('golfMill').object3D.position.set(L.mill[0], 0, L.mill[1]);
+      $('golfHole').object3D.position.set(L.hole[0], 0, L.hole[1]);
+      Object.assign(GF.ball, { x: L.start[0], z: L.start[1], vx: 0, vz: 0 });
+      GF.state = 'ready'; GF.sink = 0;
+      $('golfBall').object3D.visible = true;
+      golfStats();
+      toast('⛳ ' + L.name);
+    }
+    function golfStats() {
+      setStats('golfStats', `⛳ ${GOLF_HOLES[GF.hole].name} · Golpes: ${GF.strokes} · Par 3 · Total ${GF.total}`);
+    }
+    function golfAim(d) {
+      if (GF.state !== 'ready') return;
+      GF.aim = Math.atan2(d.dx, Math.max(1, d.dy)); GF.pow = d.norm;
+      const sp = 0.5 + 3.2 * GF.pow, len = Math.min(1.6, sp * 0.45);
+      const pts = [];
+      for (let i = 0; i <= 12; i++) pts.push([GF.ball.x + Math.sin(GF.aim) * len * i / 12, 0.03, GF.ball.z - Math.cos(GF.aim) * len * i / 12]);
+      setDots($('golfDots'), pts);
+    }
+    function golfHit() {
+      if (GF.state !== 'ready') return;
+      $('golfDots').object3D.visible = false;
+      const sp = 0.5 + 3.2 * GF.pow;
+      GF.ball.vx = Math.sin(GF.aim) * sp; GF.ball.vz = -Math.cos(GF.aim) * sp;
+      GF.strokes++; GF.state = 'rolling';
+      tone(1400, 0.05, 'sine', 0.12);
+      golfStats();
+    }
+    function golfStep(h) {
+      const b = GF.ball, L = GOLF_HOLES[GF.hole];
+      b.x += b.vx * h; b.z += b.vz * h;
+      // Bordes
+      if (b.x < -0.65 + GF.R) { b.x = -0.65 + GF.R; b.vx = Math.abs(b.vx) * 0.75; sfx.bounce(); }
+      if (b.x > 0.65 - GF.R) { b.x = 0.65 - GF.R; b.vx = -Math.abs(b.vx) * 0.75; sfx.bounce(); }
+      if (b.z > 0.42 - GF.R) { b.z = 0.42 - GF.R; b.vz = -Math.abs(b.vz) * 0.75; }
+      if (b.z < -3.52 + GF.R) { b.z = -3.52 + GF.R; b.vz = Math.abs(b.vz) * 0.75; sfx.bounce(); }
+      L.walls.forEach(w => { if (circleBox(b, GF.R, w[0], w[1], w[2], w[3], 0.75)) sfx.bounce(); });
+      // Barredor del molino (gira en el piso)
+      if (L.mill) {
+        const a = GF.millA, half = L.mill[2], cx = L.mill[0], cz = L.mill[1] + 0.02;
+        const ux = Math.cos(a), uz = -Math.sin(a);
+        const t = clamp((b.x - cx) * ux + (b.z - cz) * uz, -half, half);
+        const px = cx + ux * t, pz = cz + uz * t;
+        let dx = b.x - px, dz = b.z - pz, d = hypot(dx, dz);
+        if (d < GF.R + 0.02) {
+          if (d < 1e-6) { dx = 0; dz = 1; d = 1; }
+          const nx = dx / d, nz = dz / d;
+          b.x = px + nx * (GF.R + 0.02); b.z = pz + nz * (GF.R + 0.02);
+          const vn = b.vx * nx + b.vz * nz;
+          if (vn < 0) { b.vx -= 1.7 * vn * nx; b.vz -= 1.7 * vn * nz; }
+          b.vx += nx * 0.4; b.vz += nz * 0.4;     // el aspa empuja
+          sfx.rim();
+        }
+      }
+      // Fricción del pasto
+      const sp = hypot(b.vx, b.vz);
+      if (sp > 0) {
+        const ns = Math.max(0, sp - 0.35 * h) * Math.exp(-0.6 * h);
+        b.vx *= ns / sp; b.vz *= ns / sp;
+      }
+      // Hoyo
+      const hx = L.hole[0] - b.x, hz = L.hole[1] - b.z, hd = hypot(hx, hz);
+      if (hd < 0.05 && sp < 1.5) { GF.state = 'sunk'; return; }
+      if (hd < 0.1 && sp < 1.0) { b.vx += hx * 1.5 * h * 10; b.vz += hz * 1.5 * h * 10; }   // borde del hoyo atrae
+    }
+    function updateGolf(dt) {
+      const L = GOLF_HOLES[GF.hole];
+      GF.millA += dt * 1.6;
+      $('golfSweep').object3D.rotation.y = GF.millA;
+      $('golfBlades').object3D.rotation.z = GF.millA;
+      if (GF.state === 'rolling') {
+        const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
+        for (let i = 0; i < steps && GF.state === 'rolling'; i++) golfStep(h);
+        if (GF.state === 'rolling' && hypot(GF.ball.vx, GF.ball.vz) < 0.02) {
+          GF.state = 'ready';
+          if (GF.strokes >= 6) { toast('😅 Máximo de golpes'); golfFinishHole(false); }
+        }
+        if (GF.state === 'sunk') golfFinishHole(true);
+      }
+      if (GF.state === 'sinking') {
+        GF.sink += dt;
+        $('golfBall').object3D.position.set(L.hole[0], GF.R - GF.sink * 0.15, L.hole[1]);
+        return;
+      }
+      $('golfBall').object3D.position.set(GF.ball.x, GF.R, GF.ball.z);
+    }
+    function golfFinishHole(inHole) {
+      GF.state = 'sinking'; GF.sink = 0;
+      let pts = 0;
+      if (inHole) {
+        pts = Math.max(10, (5 - GF.strokes) * 15) + (GF.strokes === 1 ? 50 : 0);
+        const L = GOLF_HOLES[GF.hole];
+        const label = GF.strokes === 1 ? '🏆 ¡HOYO EN UNO!' : GF.strokes === 2 ? '🦅 ¡Birdie!' : GF.strokes === 3 ? '👍 ¡Par!' : '⛳ ¡Adentro!';
+        toast(`${label} +${pts}` + hit());
+        sfx.score();
+        burst($('golfGame'), L.hole[0], 0.2, L.hole[1], 28, 0.4);
+        addPoints(pts); duelPoint(pts); GF.total += pts;
+        registrarInteraccion('Minigolf', `${L.name}: ${GF.strokes} golpes`);
+      } else missed();
+      setTimeout(() => {
+        if (G.mode !== 'golf') return;
+        if (GF.hole + 1 < GOLF_HOLES.length) golfLoadHole(GF.hole + 1);
+        else { toast(`🏁 Recorrido completo: ${GF.total} puntos`); GF.total = 0; setTimeout(() => { if (G.mode === 'golf') golfLoadHole(0); }, 1600); }
+      }, 1600);
+    }
+
+    /* ======================= 🎯 DARDOS ======================= */
+    const DART_ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+    const DT = { R: 0.36, CY: 1.5, Z: -2.4, state: 'ready', dart: 0, round: 1, ROUNDS: 5, total: 0, roundPts: 0, aimX: 0, aimY: 0, sway: 0, fly: null };
+    function dartScore(x, y) {
+      const r = hypot(x, y) / DT.R;     // 0..1 en el tablero
+      if (r > 1) return { pts: 0, txt: 'Fuera' };
+      if (r < 0.037) return { pts: 50, txt: '🎯 ¡BULLSEYE!' };
+      if (r < 0.094) return { pts: 25, txt: 'Bull 25' };
+      let ang = Math.atan2(x, y) * 180 / Math.PI;          // 0° = arriba (20)
+      ang = (ang + 360 + 9) % 360;
+      const n = DART_ORDER[Math.floor(ang / 18)];
+      if (r > 0.95) return { pts: 0, txt: 'Borde' };
+      if (r > 0.88) return { pts: n * 2, txt: `Doble ${n}` };
+      if (r > 0.55 && r < 0.62) return { pts: n * 3, txt: `Triple ${n}` };
+      return { pts: n, txt: String(n) };
+    }
+    function dartsScene() {
+      let darts = '';
+      for (let i = 0; i < 3; i++) darts += `<a-entity id="dart${i}" visible="false" shadow="cast: true">
+          <a-cylinder radius="0.006" height="0.08" rotation="90 0 0" position="0 0 0.03" color="#B0BEC5" material="metalness: 0.9; roughness: 0.2"></a-cylinder>
+          <a-cylinder radius="0.009" height="0.08" rotation="90 0 0" position="0 0 0.1" color="${['#E53935', '#1E88E5', '#43A047'][i]}"></a-cylinder>
+          <a-cylinder radius="0.003" height="0.05" rotation="90 0 0" position="0 0 0.16" color="#ECEFF1"></a-cylinder>
+          <a-box width="0.05" height="0.002" depth="0.05" position="0 0 0.19" rotation="0 45 0" color="${['#E53935', '#1E88E5', '#43A047'][i]}"></a-box>
+          <a-box width="0.002" height="0.05" depth="0.05" position="0 0 0.19" rotation="0 0 0" color="${['#E53935', '#1E88E5', '#43A047'][i]}"></a-box>
+          <a-cone radius-bottom="0.006" radius-top="0" height="0.03" rotation="-90 0 0" position="0 0 -0.01" color="#ECEFF1" material="metalness: 1"></a-cone>
+        </a-entity>`;
+      return `<a-entity id="dartsGame" visible="false">
+        <a-entity id="dartsFocus" position="0 1.3 -2.0"></a-entity>
+        <a-entity shadow-catcher="opacity: 0.4" scale="5 5 5" position="0 0 -1.4"></a-entity>
+        <!-- Soporte de madera -->
+        <a-box width="1.1" height="1.1" depth="0.04" position="0 1.5 -2.44" color="#ffffff" ptex="type: wood; repeat: 1 1; color: #4E342E" shadow="cast: true; receive: true"></a-box>
+        <a-box width="0.08" height="1.5" depth="0.08" position="-0.35 0.75 -2.48" color="#3E2723"></a-box>
+        <a-box width="0.08" height="1.5" depth="0.08" position="0.35 0.75 -2.48" color="#3E2723"></a-box>
+        <a-box width="0.9" height="0.06" depth="0.5" position="0 0.03 -2.3" color="#3E2723"></a-box>
+        <a-cylinder radius="0.4" height="0.04" rotation="90 0 0" position="0 1.5 -2.42" color="#111111"></a-cylinder>
+        <a-circle radius="0.36" position="0 1.5 -2.399" color="#ffffff" material="roughness: 0.8" ptex="type: dartboard" shadow="receive: true"></a-circle>
+        <!-- Luz sobre la diana -->
+        <a-entity light="type: spot; color: #fff3e0; intensity: 1.6; angle: 35; penumbra: 0.6; distance: 4" position="0 2.3 -1.6" rotation="-50 0 0"></a-entity>
+        <!-- Línea de lanzamiento -->
+        <a-box width="0.6" height="0.005" depth="0.04" position="0 0.003 0.05" color="#FFD54F"></a-box>
+        <!-- Mira -->
+        <a-entity id="dartAim" visible="false" position="0 1.5 -2.39">
+          <a-ring radius-inner="0.035" radius-outer="0.045" material="shader: flat; color: #00E5FF; opacity: 0.9; transparent: true"></a-ring>
+          <a-box width="0.12" height="0.006" depth="0.002" material="shader: flat; color: #00E5FF"></a-box>
+          <a-box width="0.006" height="0.12" depth="0.002" material="shader: flat; color: #00E5FF"></a-box>
+        </a-entity>
+        ${darts}
+      </a-entity>`;
+    }
+    function dartsNew() {
+      DT.round = 1; DT.total = 0; dartsRound();
+    }
+    function dartsRound() {
+      DT.dart = 0; DT.roundPts = 0; DT.state = 'ready';
+      for (let i = 0; i < 3; i++) $('dart' + i).object3D.visible = false;
+      dartsStats();
+    }
+    function dartsStats() {
+      setStats('dartsStats', `🎯 Ronda ${DT.round}/${DT.ROUNDS} · Dardo ${Math.min(DT.dart + 1, 3)}/3 · Ronda: ${DT.roundPts} · Total ${DT.total}`);
+    }
+    function dartsAim(d) {
+      if (DT.state !== 'ready') return;
+      DT.aimX = clamp(d.side * 1.0, -0.5, 0.5);
+      DT.aimY = clamp((d.norm - 0.5) * 1.1, -0.5, 0.5);
+      DT.aiming = true;
+    }
+    function dartsThrow() {
+      if (DT.state !== 'ready' || !DT.aiming) return;
+      DT.aiming = false;
+      $('dartAim').object3D.visible = false;
+      const tx = DT.aimX + DT.swayX, ty = DT.aimY + DT.swayY;
+      const el = $('dart' + DT.dart);
+      DT.fly = { el: el, t: 0, T: 0.32, sx: 0, sy: 1.25, sz: 0.2, tx: tx, ty: DT.CY + ty };
+      el.object3D.visible = true;
+      DT.state = 'flying';
+      tone(600, 0.15, 'sine', 0.06, 0, 2);
+    }
+    function updateDarts(dt) {
+      // La mano tiembla un poco (como en la vida real)
+      DT.sway += dt;
+      DT.swayX = Math.sin(DT.sway * 2.1) * 0.025 + Math.sin(DT.sway * 5.3) * 0.01;
+      DT.swayY = Math.cos(DT.sway * 1.7) * 0.025 + Math.sin(DT.sway * 4.1) * 0.01;
+      const aim = $('dartAim').object3D;
+      aim.visible = DT.state === 'ready' && !!DT.aiming;
+      aim.position.set(DT.aimX + DT.swayX, DT.CY + DT.aimY + DT.swayY, -2.395);
+      if (DT.state === 'flying') {
+        const f = DT.fly; f.t += dt;
+        const k = Math.min(1, f.t / f.T);
+        const x = f.sx + (f.tx - f.sx) * k, z = f.sz + (DT.Z + 0.01 - f.sz) * k;
+        const y = f.sy + (f.ty - f.sy) * k + Math.sin(k * Math.PI) * 0.12;
+        f.el.object3D.position.set(x, y, z);
+        f.el.object3D.rotation.set(-Math.cos(k * Math.PI) * 0.25, 0, 0);
+        if (k >= 1) dartsLand(f);
+      }
+    }
+    function dartsLand(f) {
+      const s = dartScore(f.tx, f.ty - DT.CY);
+      tone(220, 0.05, 'square', 0.1);
+      DT.dart++; DT.roundPts += s.pts; DT.total += s.pts;
+      if (s.pts > 0) { addPoints(s.pts); duelPoint(s.pts); }
+      if (s.pts >= 50) { toast(s.txt + ' +50' + hit()); sfx.score(); burst($('dartsGame'), f.tx, f.ty, DT.Z + 0.05, 24, 0.25); }
+      else if (s.pts >= 30) { toast(`🔥 ${s.txt} +${s.pts}` + hit()); sfx.score(); }
+      else if (s.pts > 0) { popText($('dartsGame'), f.tx, f.ty + 0.08, DT.Z + 0.05, '+' + s.pts, '#FFD54F'); }
+      else { toast('😬 ' + s.txt); missed(); }
+      DT.state = 'ready';
+      if (DT.dart >= 3) {
+        DT.state = 'wait';
+        registrarInteraccion('Dardos', `Ronda ${DT.round}: ${DT.roundPts}`);
+        setTimeout(() => {
+          if (G.mode !== 'darts') return;
+          toast(`Ronda ${DT.round}: ${DT.roundPts} puntos`);
+          DT.round++;
+          if (DT.round > DT.ROUNDS) { toast(`🏁 Total: ${DT.total} puntos`); setTimeout(() => { if (G.mode === 'darts') dartsNew(); }, 1500); }
+          else dartsRound();
+        }, 1200);
+      }
+      dartsStats();
+    }
+
+    /* ======================= 🎪 LANZAR AROS ======================= */
+    const RG = { BOT: [], PZ: -1.6, TOP: 0.3, NECK: 0.62, left: 5, ROUND: 5, score: 0, state: 'ready', aimX: 0, aimZ: -1.6, fly: null, idx: 0 };
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) RG.BOT.push({ x: (c - 1) * 0.26, z: RG.PZ + (r - 1) * 0.26, gold: r === 1 && c === 1 });
+    function ringsScene() {
+      let bottles = '';
+      RG.BOT.forEach(b => {
+        const col = b.gold ? '#FFD54F' : ['#43A047', '#1E88E5', '#8E24AA', '#E53935'][Math.floor(Math.random() * 4)];
+        bottles += `<a-entity position="${b.x} ${RG.TOP} ${b.z}" shadow="cast: true">
+          <a-cylinder radius="0.04" height="0.2" position="0 0.1 0" material="color: ${col}; opacity: 0.8; transparent: true; roughness: 0.05; metalness: 0.2"></a-cylinder>
+          <a-cone radius-bottom="0.04" radius-top="0.014" height="0.06" position="0 0.23 0" material="color: ${col}; opacity: 0.8; transparent: true; roughness: 0.05"></a-cone>
+          <a-cylinder radius="0.014" height="0.07" position="0 0.29 0" material="color: ${col}; opacity: 0.85; transparent: true; roughness: 0.05"></a-cylinder>
+          ${b.gold ? '<a-sphere radius="0.02" position="0 0.34 0" material="shader: flat; color: #FFF59D"></a-sphere>' : ''}
+        </a-entity>`;
+      });
+      let rings = '';
+      for (let i = 0; i < 5; i++) rings += `<a-torus id="ring${i}" class="ringtoss" radius="0.065" radius-tubular="0.009" rotation="90 0 0" visible="false" color="${['#FF4081', '#FFEA00', '#00E5FF', '#76FF03', '#FF9100'][i]}" material="roughness: 0.4" shadow="cast: true"></a-torus>`;
+      return `<a-entity id="ringsGame" visible="false">
+        <a-entity id="ringsFocus" position="0 0.35 -1.3"></a-entity>
+        <a-entity shadow-catcher="opacity: 0.45" scale="5 5 5" position="0 0 -1.2"></a-entity>
+        <!-- Puesto de feria -->
+        <a-box width="1.0" height="0.3" depth="0.95" position="0 0.15 ${RG.PZ}" color="#ffffff" ptex="type: wood; repeat: 1 0.5; color: #A1887F" shadow="cast: true; receive: true"></a-box>
+        <a-box width="1.02" height="0.04" depth="0.97" position="0 0.31 ${RG.PZ}" color="#C62828"></a-box>
+        <a-box width="0.04" height="1.4" depth="0.04" position="-0.55 0.7 -2.1" color="#FAFAFA"></a-box>
+        <a-box width="0.04" height="1.4" depth="0.04" position="0.55 0.7 -2.1" color="#FAFAFA"></a-box>
+        <a-box width="1.2" height="0.25" depth="0.04" position="0 1.4 -2.1" color="#D32F2F"></a-box>
+        <a-entity canvas-text="text: ¡LANZA LOS AROS!; color: #FFFFFF; width: 1.4" position="0 1.4 -2.07"></a-entity>
+        <a-entity position="0 1.55 -2.1">
+          ${[0, 1, 2, 3, 4, 5].map(i => `<a-cone radius-bottom="0.1" radius-top="0" height="0.14" rotation="180 0 0" position="${-0.5 + i * 0.2} -0.06 0.02" color="${i % 2 ? '#FFFFFF' : '#D32F2F'}"></a-cone>`).join('')}
+        </a-entity>
+        ${bottles}
+        <a-entity id="ringsAim" visible="false">
+          <a-ring radius-inner="0.055" radius-outer="0.075" rotation="-90 0 0" material="shader: flat; color: #00E5FF; opacity: 0.8; transparent: true"></a-ring>
+        </a-entity>
+        <a-entity id="ringsDots"></a-entity>
+        ${rings}
+        <a-box width="0.6" height="0.005" depth="0.04" position="0 0.003 0.1" color="#FFD54F"></a-box>
+      </a-entity>`;
+    }
+    function ringsNew() {
+      RG.left = RG.ROUND; RG.score = 0; RG.idx = 0;
+      document.querySelectorAll('.ringtoss').forEach(r => r.object3D.visible = false);
+      RG.state = 'ready';
+      ringsStats();
+    }
+    function ringsStats() {
+      setStats('ringsStats', `🎪 Aros: ${'⭕'.repeat(RG.left)}${'·'.repeat(RG.ROUND - RG.left)} · Puntos ${RG.score}`);
+    }
+    function ringsLandY(x, z) {
+      return (Math.abs(x) < 0.5 && Math.abs(z - RG.PZ) < 0.47) ? RG.TOP + 0.04 : 0.01;
+    }
+    function ringsAim(d) {
+      if (RG.state !== 'ready' || RG.left <= 0) return;
+      RG.aimX = clamp(d.side * 1.2, -0.7, 0.7);
+      RG.aimZ = clamp(-0.8 - d.norm * 1.6, -2.6, -0.6);
+      const ly = ringsLandY(RG.aimX, RG.aimZ);
+      $('ringsAim').object3D.visible = true;
+      $('ringsAim').object3D.position.set(RG.aimX, ly + 0.005, RG.aimZ);
+      const pts = [];
+      for (let i = 0; i <= 14; i++) {
+        const k = i / 14;
+        pts.push([RG.aimX * k, 1.0 + (ly - 1.0) * k + Math.sin(k * Math.PI) * 0.45, 0.3 + (RG.aimZ - 0.3) * k]);
+      }
+      setDots($('ringsDots'), pts);
+    }
+    function ringsThrow() {
+      if (RG.state !== 'ready' || RG.left <= 0 || !$('ringsAim').object3D.visible) return;
+      $('ringsAim').object3D.visible = false; $('ringsDots').object3D.visible = false;
+      const tx = RG.aimX + rnd(-0.025, 0.025), tz = RG.aimZ + rnd(-0.025, 0.025);
+      const el = $('ring' + (RG.idx % 5));
+      RG.idx++; RG.left--;
+      el.object3D.visible = true;
+      RG.fly = { el: el, t: 0, T: 0.7, tx: tx, tz: tz, ly: ringsLandY(tx, tz) };
+      RG.state = 'flying';
+      tone(500, 0.2, 'sine', 0.06, 0, 1.6);
+      ringsStats();
+    }
+    function updateRings(dt) {
+      if (RG.state === 'ready' || RG.state === 'wait') return;
+      const f = RG.fly; f.t += dt;
+      if (RG.state === 'flying') {
+        const k = Math.min(1, f.t / f.T);
+        f.el.object3D.position.set(f.tx * k, 1.0 + (RG.NECK + 0.02 - 1.0) * k + Math.sin(k * Math.PI) * 0.45, 0.3 + (f.tz - 0.3) * k);
+        f.el.object3D.rotation.set(Math.PI / 2 + Math.sin(k * 6) * 0.15, k * 8, 0);
+        if (k >= 1) ringsLand(f);
+      } else if (RG.state === 'sliding') {
+        const k = Math.min(1, (f.t - f.t0) / 0.35);
+        f.el.object3D.position.y = RG.NECK + 0.02 + (f.endY - RG.NECK - 0.02) * k;
+        f.el.object3D.rotation.set(Math.PI / 2, 0, 0);
+        if (k >= 1) ringsNext();
+      }
+    }
+    function ringsLand(f) {
+      let best = null, bd = 9;
+      RG.BOT.forEach(b => { const d = hypot(b.x - f.tx, b.z - f.tz); if (d < bd) { bd = d; best = b; } });
+      if (best && bd < 0.045) {
+        const pts = best.gold ? 40 : 15;
+        f.el.object3D.position.set(best.x, RG.NECK, best.z);
+        f.endY = RG.TOP + 0.24; f.t0 = f.t; RG.state = 'sliding';
+        RG.score += pts; addPoints(pts); duelPoint(pts);
+        toast((best.gold ? '🌟 ¡BOTELLA DORADA! +' : '🎪 ¡Ensartado! +') + pts + hit());
+        sfx.score();
+        burst($('ringsGame'), best.x, RG.NECK, best.z, best.gold ? 30 : 16, 0.3);
+        registrarInteraccion('Aros', best.gold ? 'Dorada' : 'Botella');
+      } else {
+        // Rebota en el cuello o cae al piso / mesa
+        const x = best && bd < 0.09 ? f.tx + (f.tx - best.x) * 1.2 : f.tx;
+        const z = best && bd < 0.09 ? f.tz + (f.tz - best.z) * 1.2 : f.tz;
+        f.el.object3D.position.set(x, ringsLandY(x, z) + 0.01, z);
+        f.el.object3D.rotation.set(Math.PI / 2, 0, rnd(-0.3, 0.3));
+        if (best && bd < 0.09) { sfx.rim(); toast('😮 ¡Casi! Rebotó'); } else { sfx.miss(); toast('🙃 No entró'); }
+        missed();
+        RG.state = 'wait';
+        setTimeout(ringsNext, 600);
+      }
+    }
+    function ringsNext() {
+      if (G.mode !== 'rings') return;
+      RG.state = 'ready';
+      if (RG.left <= 0) {
+        RG.state = 'wait';
+        setTimeout(() => { if (G.mode !== 'rings') return; toast(`🏁 Ronda: ${RG.score} puntos`); ringsNew(); }, 1200);
+      }
+      ringsStats();
+    }
+
+    /* =====================================================================
+       JUEGOS 1 CONTRA 1 (Air hockey y Voleibol)
+       Solo: contra la máquina. Online: el anfitrión calcula todo y el
+       invitado ve la mesa/cancha girada 180° y manda su posición.
+       ===================================================================== */
+    function vsBase(o) {
+      return Object.assign({ me: 0, rival: 0, online: false, over: false, lastSend: 0, px: 0, pz: 0, tx: 0, tz: 0, rx: 0, rz: 0, rnx: 0, rnz: 0 }, o);
+    }
+    function vsRivalName(X) { return X.online ? NET.rivalName : 'Máquina'; }
+    function vsPoint(X, mine, game, color) {
+      if (mine) {
+        addPoints(10);
+        toast(`${X.icon} ¡Punto! +10` + hit()); sfx.score();
+        registrarInteraccion('Punto', X.name);
+      } else { toast('😬 Punto de ' + vsRivalName(X)); sfx.miss(); missed(); }
+    }
+    function vsWin(X, iWon) {
+      if (iWon) { addPoints(30); setTimeout(() => toast('🏆 ¡Ganaste el partido! +30'), 900); registrarInteraccion('Partido ganado', X.name); }
+      else setTimeout(() => toast('😢 Ganó ' + vsRivalName(X)), 900);
+    }
+    function vsStats(X) {
+      setStats(X.statsId, `${X.icon} Tú ${X.me} – ${X.rival} ${vsRivalName(X)} · gana quien llegue a ${X.TO_WIN}`);
+    }
+    // Host -> invitado
+    function vsSendState(X, extra) {
+      netSend(Object.assign({ t: 'vs', g: X.id, me: X.me, rv: X.rival }, extra));
+    }
+    function vsGuestScore(X, d) {
+      if (d.rv > X.me) vsPoint(X, true);
+      if (d.me > X.rival) vsPoint(X, false);
+      X.me = d.rv; X.rival = d.me;
+      vsStats(X);
+    }
+
+    /* ======================= 🏒 AIR HOCKEY ======================= */
+    const HK = vsBase({
+      id: 'hockey', name: 'Air hockey', icon: '🏒', statsId: 'hockeyStats', TO_WIN: 7,
+      Y: 0.8, HX: 0.46, HZ: 0.92, GOAL: 0.16, PR: 0.035, MR: 0.055,
+      puck: { x: 0, z: 0, vx: 0, vz: 0 }, pvx: 0, pvz: 0, rvx: 0, rvz: 0, serveAt: 0, t: 0, state: 'serve', server: 1
+    });
+    function hockeyScene() {
+      return `<a-entity id="hockeyGame" visible="false">
+        <a-entity id="hockeyFocus" position="0 0.8 -0.1"></a-entity>
+        <a-entity shadow-catcher="opacity: 0.45" scale="4 4 4"></a-entity>
+        <a-entity shadow="cast: true; receive: true">
+          <a-box width="1.06" height="0.06" depth="2.02" position="0 0.77 0" color="#ECEFF1" material="metalness: 0.3; roughness: 0.4"></a-box>
+          <a-box width="1.0" height="0.12" depth="1.96" position="0 0.69 0" color="#1A237E"></a-box>
+          <a-box width="0.9" height="0.6" depth="0.08" position="0 0.33 -0.8" color="#283593"></a-box>
+          <a-box width="0.9" height="0.6" depth="0.08" position="0 0.33 0.8" color="#283593"></a-box>
+          <a-box width="0.08" height="0.6" depth="1.6" position="-0.42 0.33 0" color="#283593"></a-box>
+          <a-box width="0.08" height="0.6" depth="1.6" position="0.42 0.33 0" color="#283593"></a-box>
+        </a-entity>
+        <!-- Superficie -->
+        <a-plane width="0.92" height="1.84" rotation="-90 0 0" position="0 0.801 0" material="color: #E3F2FD; roughness: 0.15; metalness: 0.1" shadow="receive: true"></a-plane>
+        <a-box width="0.92" height="0.002" depth="0.01" position="0 0.802 0" material="shader: flat; color: #E53935"></a-box>
+        <a-ring radius-inner="0.12" radius-outer="0.13" rotation="-90 0 0" position="0 0.803 0" material="shader: flat; color: #1E88E5"></a-ring>
+        <a-ring radius-inner="0.19" radius-outer="0.2" theta-start="0" theta-length="180" rotation="-90 0 0" position="0 0.803 0.92" material="shader: flat; color: #E53935"></a-ring>
+        <a-ring radius-inner="0.19" radius-outer="0.2" theta-start="180" theta-length="180" rotation="-90 0 0" position="0 0.803 -0.92" material="shader: flat; color: #1E88E5"></a-ring>
+        <!-- Bordes con hueco de arco -->
+        <a-box width="0.04" height="0.05" depth="1.88" position="-0.48 0.825 0" color="#FAFAFA"></a-box>
+        <a-box width="0.04" height="0.05" depth="1.88" position="0.48 0.825 0" color="#FAFAFA"></a-box>
+        <a-box width="0.32" height="0.05" depth="0.04" position="-0.32 0.825 0.94" color="#FAFAFA"></a-box>
+        <a-box width="0.32" height="0.05" depth="0.04" position="0.32 0.825 0.94" color="#FAFAFA"></a-box>
+        <a-box width="0.32" height="0.05" depth="0.04" position="-0.32 0.825 -0.94" color="#FAFAFA"></a-box>
+        <a-box width="0.32" height="0.05" depth="0.04" position="0.32 0.825 -0.94" color="#FAFAFA"></a-box>
+        <a-box width="0.32" height="0.03" depth="0.03" position="0 0.81 0.95" material="shader: flat; color: #E53935; opacity: 0.6; transparent: true"></a-box>
+        <a-box width="0.32" height="0.03" depth="0.03" position="0 0.81 -0.95" material="shader: flat; color: #1E88E5; opacity: 0.6; transparent: true"></a-box>
+        <!-- Disco y mazos -->
+        <a-cylinder id="hkPuck" radius="0.035" height="0.012" position="0 0.808 0" color="#212121" material="roughness: 0.3" shadow="cast: true"></a-cylinder>
+        <a-entity id="hkMe" position="0 0.8 0.7" shadow="cast: true">
+          <a-cylinder radius="0.055" height="0.022" position="0 0.012 0" color="#E53935" material="roughness: 0.3"></a-cylinder>
+          <a-cylinder radius="0.025" height="0.05" position="0 0.045 0" color="#C62828"></a-cylinder>
+          <a-sphere radius="0.028" position="0 0.07 0" color="#E53935"></a-sphere>
+        </a-entity>
+        <a-entity id="hkRival" position="0 0.8 -0.7" shadow="cast: true">
+          <a-cylinder radius="0.055" height="0.022" position="0 0.012 0" color="#1E88E5" material="roughness: 0.3"></a-cylinder>
+          <a-cylinder radius="0.025" height="0.05" position="0 0.045 0" color="#1565C0"></a-cylinder>
+          <a-sphere radius="0.028" position="0 0.07 0" color="#1E88E5"></a-sphere>
+        </a-entity>
+      </a-entity>`;
+    }
+    function hockeyNew() {
+      HK.me = HK.rival = 0; HK.over = false; HK.server = 1;
+      HK.px = 0; HK.pz = 0.7; HK.tx = 0; HK.tz = 0.7; HK.rx = 0; HK.rz = -0.7;
+      vsStats(HK); hockeyServe();
+    }
+    function hockeyServe() {
+      HK.state = 'serve'; HK.serveAt = HK.t + 0.9;
+      Object.assign(HK.puck, { x: 0, z: HK.server === 1 ? 0.3 : -0.3, vx: 0, vz: 0 });
+    }
+    function hockeyMallet(px, pz, vx, vz) {
+      const p = HK.puck, dx = p.x - px, dz = p.z - pz, d = hypot(dx, dz), m = HK.PR + HK.MR;
+      if (d < m && d > 1e-6) {
+        const nx = dx / d, nz = dz / d;
+        p.x = px + nx * m; p.z = pz + nz * m;
+        const rel = (p.vx - vx) * nx + (p.vz - vz) * nz;
+        if (rel < 0) { p.vx -= 1.9 * rel * nx; p.vz -= 1.9 * rel * nz; }
+        p.vx += vx * 0.35; p.vz += vz * 0.35;
+        const sp = hypot(p.vx, p.vz); if (sp > 3.2) { p.vx *= 3.2 / sp; p.vz *= 3.2 / sp; }
+        tone(900, 0.03, 'square', 0.06);
+      }
+    }
+    function hockeyStep(h) {
+      const p = HK.puck;
+      p.x += p.vx * h; p.z += p.vz * h;
+      const f = Math.exp(-0.25 * h); p.vx *= f; p.vz *= f;
+      if (p.x < -HK.HX + HK.PR) { p.x = -HK.HX + HK.PR; p.vx = Math.abs(p.vx) * 0.9; sfx.bounce(); }
+      if (p.x > HK.HX - HK.PR) { p.x = HK.HX - HK.PR; p.vx = -Math.abs(p.vx) * 0.9; sfx.bounce(); }
+      if (Math.abs(p.x) > HK.GOAL) {
+        if (p.z > HK.HZ - HK.PR) { p.z = HK.HZ - HK.PR; p.vz = -Math.abs(p.vz) * 0.9; sfx.bounce(); }
+        if (p.z < -HK.HZ + HK.PR) { p.z = -HK.HZ + HK.PR; p.vz = Math.abs(p.vz) * 0.9; sfx.bounce(); }
+      }
+      hockeyMallet(HK.px, HK.pz, HK.pvx, HK.pvz);
+      hockeyMallet(HK.rx, HK.rz, HK.rvx, HK.rvz);
+      if (p.z > HK.HZ + 0.05) hockeyGoal(false);        // gol en mi arco
+      else if (p.z < -HK.HZ - 0.05) hockeyGoal(true);   // gol en el arco rival
+    }
+    function hockeyGoal(mine) {
+      if (HK.state !== 'play') return;
+      HK.state = 'point';
+      if (mine) HK.me++; else HK.rival++;
+      vsPoint(HK, mine);
+      if (mine) burst($('hockeyGame'), 0, 0.85, -0.95, 22, 0.25);
+      HK.server = mine ? -1 : 1;
+      vsStats(HK);
+      if (HK.me >= HK.TO_WIN || HK.rival >= HK.TO_WIN) {
+        HK.over = true; vsWin(HK, HK.me > HK.rival);
+        setTimeout(() => { if (G.mode === 'hockey') hockeyNew(); }, 3000);
+      } else setTimeout(() => { if (G.mode === 'hockey') hockeyServe(); }, 900);
+    }
+    function hockeyFinger(e) {
+      HK.tx = clamp((e.clientX / window.innerWidth - 0.5) * 1.1, -HK.HX + HK.MR, HK.HX - HK.MR);
+      HK.tz = clamp(0.05 + (e.clientY / window.innerHeight) * 0.95, 0.08, HK.HZ - HK.MR);
+    }
+    function updateHockey(dt) {
+      HK.t += dt;
+      const ox = HK.px, oz = HK.pz;
+      HK.px += (HK.tx - HK.px) * Math.min(1, dt * 18); HK.pz += (HK.tz - HK.pz) * Math.min(1, dt * 18);
+      HK.pvx = (HK.px - ox) / Math.max(dt, 1e-3); HK.pvz = (HK.pz - oz) / Math.max(dt, 1e-3);
+      const guest = HK.online && !NET.isHost;
+      if (guest) {
+        if ((HK.lastSend += dt) > 0.033) { netSend({ t: 'vsx', g: 'hockey', x: +HK.px.toFixed(3), z: +HK.pz.toFixed(3) }); HK.lastSend = 0; }
+      } else {
+        const orx = HK.rx, orz = HK.rz;
+        if (HK.online) { HK.rx += (HK.rnx - HK.rx) * Math.min(1, dt * 20); HK.rz += (HK.rnz - HK.rz) * Math.min(1, dt * 20); }
+        else {
+          // Máquina: defiende su arco y ataca si el disco está de su lado
+          const p = HK.puck, sp = 1.1 + HK.me * 0.08;
+          let gx = clamp(p.x, -0.35, 0.35), gz = -0.78;
+          if (p.z < -0.05 && HK.state === 'play') { gx = p.x; gz = p.z - 0.07; }
+          HK.rx += clamp(gx - HK.rx, -sp * dt, sp * dt);
+          HK.rz += clamp(gz - HK.rz, -sp * dt, sp * dt);
+          HK.rz = clamp(HK.rz, -HK.HZ + HK.MR, -0.06);
+        }
+        HK.rvx = (HK.rx - orx) / Math.max(dt, 1e-3); HK.rvz = (HK.rz - orz) / Math.max(dt, 1e-3);
+        if (HK.state === 'serve' && HK.t >= HK.serveAt && !HK.over) HK.state = 'play';
+        if (HK.state === 'play' || HK.state === 'point') {
+          const steps = Math.ceil(dt / (1 / 300)), h = dt / steps;
+          for (let i = 0; i < steps; i++) hockeyStep(h);
+        }
+        if (HK.online && (HK.lastSend += dt) > 0.033) {
+          vsSendState(HK, { p: [+HK.puck.x.toFixed(3), +HK.puck.z.toFixed(3)], hx: +HK.px.toFixed(3), hz: +HK.pz.toFixed(3) });
+          HK.lastSend = 0;
+        }
+      }
+      $('hkPuck').object3D.position.set(HK.puck.x, 0.808, HK.puck.z);
+      $('hkMe').object3D.position.set(HK.px, 0.8, HK.pz);
+      $('hkRival').object3D.position.set(HK.rx, 0.8, HK.rz);
+    }
+
+    /* ======================= 🏐 VOLEIBOL DE PLAYA ======================= */
+    const VB = vsBase({
+      id: 'volley', name: 'Voleibol', icon: '🏐', statsId: 'volleyStats', TO_WIN: 7,
+      R: 0.11, NET: 1.15, HX: 1.3, HZ: 2.6, PZ: 1.9, GRAV: 3.6,
+      ball: new V3(0, 1.5, 1.6), vel: new V3(), state: 'serve', serveAt: 0, t: 0, server: 1, lastHit: 0, aiErr: 0
+    });
+    function personHTML(id, shirt, z) {
+      return `<a-entity id="${id}" position="0 0 ${z}" shadow="cast: true">
+        <a-cylinder radius="0.05" height="0.45" position="-0.07 0.225 0" color="#C68642"></a-cylinder>
+        <a-cylinder radius="0.05" height="0.45" position="0.07 0.225 0" color="#C68642"></a-cylinder>
+        <a-box width="0.3" height="0.16" depth="0.18" position="0 0.5 0" color="#263238"></a-box>
+        <a-box width="0.34" height="0.4" depth="0.2" position="0 0.78 0" color="${shirt}"></a-box>
+        <a-entity class="arms" position="0 0.95 0">
+          <a-cylinder radius="0.035" height="0.42" position="-0.2 -0.18 0.06" rotation="25 0 12" color="#C68642"></a-cylinder>
+          <a-cylinder radius="0.035" height="0.42" position="0.2 -0.18 0.06" rotation="25 0 -12" color="#C68642"></a-cylinder>
+        </a-entity>
+        <a-sphere radius="0.11" position="0 1.1 0" color="#C68642"></a-sphere>
+        <a-sphere radius="0.115" position="0 1.14 -0.01" theta-length="75" color="#3E2723"></a-sphere>
+      </a-entity>`;
+    }
+    function volleyScene() {
+      return `<a-entity id="volleyGame" visible="false">
+        <a-entity id="volleyFocus" position="0 0.7 -0.6"></a-entity>
+        <a-plane width="3.6" height="6.4" rotation="-90 0 0" position="0 0.001 0" color="#ffffff" material="roughness: 1" ptex="type: sand; repeat: 2 3" shadow="receive: true"></a-plane>
+        <a-box width="2.6" height="0.004" depth="0.04" position="0 0.004 2.6" color="#1E88E5"></a-box>
+        <a-box width="2.6" height="0.004" depth="0.04" position="0 0.004 -2.6" color="#1E88E5"></a-box>
+        <a-box width="0.04" height="0.004" depth="5.24" position="-1.3 0.004 0" color="#1E88E5"></a-box>
+        <a-box width="0.04" height="0.004" depth="5.24" position="1.3 0.004 0" color="#1E88E5"></a-box>
+        <!-- Red -->
+        <a-cylinder radius="0.025" height="1.25" position="-1.5 0.625 0" color="#ECEFF1"></a-cylinder>
+        <a-cylinder radius="0.025" height="1.25" position="1.5 0.625 0" color="#ECEFF1"></a-cylinder>
+        <a-entity geometry="primitive: plane; width: 3.0; height: 0.5; segmentsWidth: 40; segmentsHeight: 7" position="0 0.92 0"
+          material="color: #212121; wireframe: true; side: double; opacity: 0.9; transparent: true"></a-entity>
+        <a-box width="3.0" height="0.05" depth="0.01" position="0 1.15 0" color="#FAFAFA"></a-box>
+        <!-- Palmeras y sombrilla -->
+        <a-entity position="-2.3 0 -1.2" shadow="cast: true">
+          <a-cylinder radius="0.07" height="2.2" position="0 1.1 0" color="#8D6E63"></a-cylinder>
+          ${[0, 1, 2, 3, 4, 5].map(i => `<a-box width="1" height="0.02" depth="0.22" position="${(Math.cos(i) * 0.4).toFixed(2)} 2.1 ${(Math.sin(i) * 0.4).toFixed(2)}" rotation="0 ${(-i * 57.3).toFixed(1)} -18" color="#2E7D32"></a-box>`).join('')}
+        </a-entity>
+        <a-entity position="2.2 0 1.2" shadow="cast: true">
+          <a-cylinder radius="0.02" height="1.5" position="0 0.75 0" color="#ECEFF1"></a-cylinder>
+          <a-cone radius-bottom="0.7" radius-top="0.02" height="0.35" position="0 1.6 0" color="#FF7043" material="side: double"></a-cone>
+        </a-entity>
+        ${personHTML('vbMe', '#E53935', 1.9)}
+        ${personHTML('vbRival', '#1E88E5', -1.9)}
+        <a-sphere id="vbBall" radius="0.11" position="0 1.5 1.6" color="#ffffff" material="roughness: 0.5" ptex="type: volley" shadow="cast: true"></a-sphere>
+        <a-circle id="vbMark" radius="0.12" rotation="-90 0 0" position="0 0.005 0" material="shader: flat; color: #000; opacity: 0.25; transparent: true"></a-circle>
+      </a-entity>`;
+    }
+    function volleyNew() {
+      VB.me = VB.rival = 0; VB.over = false; VB.server = 1;
+      VB.px = 0; VB.tx = 0; VB.rx = 0;
+      vsStats(VB); volleyServe();
+    }
+    function volleyServe() {
+      VB.state = 'serve'; VB.serveAt = VB.t + 1.2;
+      VB.vel.set(0, 0, 0);
+    }
+    // Golpe hacia el otro lado, con caída en un punto de la cancha rival
+    function volleyHit(fromSide, x, moveV) {
+      const dir = -fromSide;                       // 1 = yo (z+) mando hacia z-
+      const tz = dir * -rnd(0.9, 2.2) * -1;        // destino en el lado contrario
+      const targetZ = fromSide === 1 ? -rnd(0.8, 2.2) : rnd(0.8, 2.2);
+      const targetX = clamp(x + moveV * 0.5 + rnd(-0.5, 0.5), -1.15, 1.15);
+      const T = 1.25;
+      const b = VB.ball;
+      VB.vel.set((targetX - b.x) / T, (0.12 - b.y + 0.5 * VB.GRAV * T * T) / T, (targetZ - b.z) / T);
+      VB.lastHit = fromSide;
+      tone(320, 0.07, 'square', 0.1);
+      const arms = $(fromSide === 1 ? 'vbMe' : 'vbRival').querySelector('.arms');
+      if (arms) { arms.object3D.rotation.x = -1.2; setTimeout(() => arms.object3D.rotation.x = 0, 220); }
+      return tz;
+    }
+    function volleyStep(h) {
+      const b = VB.ball, v = VB.vel;
+      const pz = b.z;
+      b.addScaledVector(v, h); v.y -= VB.GRAV * h;
+      // Red
+      if ((pz > 0) !== (b.z > 0) && b.y < VB.NET + VB.R && Math.abs(b.x) < 1.5) { b.z = pz > 0 ? VB.R : -VB.R; v.z = -v.z * 0.3; v.x *= 0.5; sfx.rim(); }
+      // Golpes: cuando baja cerca de un jugador
+      if (v.y < 0 && b.y < 1.25 && b.y > 0.5) {
+        if (b.z > 0 && Math.abs(b.z - VB.PZ) < 0.45 && Math.abs(b.x - VB.px) < 0.42 && VB.lastHit !== 1) volleyHit(1, b.x, VB.pVel || 0);
+        else if (b.z < 0 && Math.abs(b.z + VB.PZ) < 0.45 && Math.abs(b.x - VB.rx) < 0.42 && VB.lastHit !== -1) { volleyHit(-1, b.x, VB.rVel || 0); VB.aiErr = rnd(-0.5, 0.5); }
+      }
+      // Toca la arena
+      if (b.y <= VB.R) {
+        b.y = VB.R;
+        const inside = Math.abs(b.x) <= VB.HX && Math.abs(b.z) <= VB.HZ;
+        let mine;
+        if (inside) mine = b.z < 0;                // cayó del lado rival -> punto mío
+        else mine = VB.lastHit === -1;             // afuera: pierde quien la mandó
+        volleyPoint(mine);
+      }
+    }
+    function volleyPoint(mine) {
+      if (VB.state !== 'play') return;
+      VB.state = 'point';
+      VB.vel.set(0, 0, 0);
+      if (mine) VB.me++; else VB.rival++;
+      vsPoint(VB, mine);
+      if (mine) burst($('volleyGame'), VB.ball.x, 0.3, VB.ball.z, 20, 0.4);
+      VB.server = mine ? 1 : -1;
+      vsStats(VB);
+      if (VB.me >= VB.TO_WIN || VB.rival >= VB.TO_WIN) {
+        VB.over = true; vsWin(VB, VB.me > VB.rival);
+        setTimeout(() => { if (G.mode === 'volley') volleyNew(); }, 3000);
+      } else setTimeout(() => { if (G.mode === 'volley') volleyServe(); }, 1100);
+    }
+    function volleyFinger(e) { VB.tx = clamp((e.clientX / window.innerWidth - 0.5) * 2.8, -1.2, 1.2); }
+    function updateVolley(dt) {
+      VB.t += dt;
+      const ox = VB.px;
+      VB.px += clamp(VB.tx - VB.px, -3 * dt, 3 * dt);
+      VB.pVel = (VB.px - ox) / Math.max(dt, 1e-3);
+      const guest = VB.online && !NET.isHost;
+      if (guest) {
+        if ((VB.lastSend += dt) > 0.04) { netSend({ t: 'vsx', g: 'volley', x: +VB.px.toFixed(3) }); VB.lastSend = 0; }
+      } else {
+        const orx = VB.rx;
+        if (VB.online) VB.rx += (VB.rnx - VB.rx) * Math.min(1, dt * 15);
+        else {
+          // Máquina: va hacia donde va a caer el balón
+          let gx = 0;
+          if (VB.state === 'play' && VB.vel.z < 0) {
+            const b = VB.ball, v = VB.vel;
+            const disc = v.y * v.y + 2 * VB.GRAV * (b.y - 0.9);
+            const tl = disc > 0 ? (v.y + Math.sqrt(disc)) / VB.GRAV : 0;
+            gx = b.x + v.x * tl + VB.aiErr * 0.6;
+          }
+          VB.rx += clamp(gx - VB.rx, -(1.6 + VB.me * 0.1) * dt, (1.6 + VB.me * 0.1) * dt);
+        }
+        VB.rVel = (VB.rx - orx) / Math.max(dt, 1e-3);
+        if (VB.state === 'serve') {
+          const sx = VB.server === 1 ? VB.px : VB.rx, sz = VB.server === 1 ? VB.PZ - 0.2 : -VB.PZ + 0.2;
+          const k = Math.max(0, VB.serveAt - VB.t);
+          VB.ball.set(sx, 1.25 + Math.sin(k * 5) * 0.08 + (1 - Math.min(1, k)) * 0.3, sz);
+          if (VB.t >= VB.serveAt && !VB.over) { VB.state = 'play'; volleyHit(VB.server, sx, 0); }
+        } else if (VB.state === 'play') {
+          const steps = Math.ceil(dt / (1 / 240)), h = dt / steps;
+          for (let i = 0; i < steps && VB.state === 'play'; i++) volleyStep(h);
+        }
+        if (VB.online && (VB.lastSend += dt) > 0.033) {
+          vsSendState(VB, { b: [+VB.ball.x.toFixed(3), +VB.ball.y.toFixed(3), +VB.ball.z.toFixed(3)], hx: +VB.px.toFixed(3) });
+          VB.lastSend = 0;
+        }
+      }
+      $('vbBall').object3D.position.copy(VB.ball);
+      $('vbBall').object3D.rotation.x += dt * 4;
+      $('vbMark').object3D.position.set(VB.ball.x, 0.005, VB.ball.z);
+      $('vbMe').object3D.position.set(VB.px, 0, VB.PZ + 0.25);
+      $('vbRival').object3D.position.set(VB.rx, 0, -VB.PZ - 0.25);
+      $('vbRival').object3D.rotation.y = Math.PI;
+    }
+
+    // ---------- Online 1 contra 1: mensajes ----------
+    function vsFromHost(d) {
+      if (d.g === 'hockey' && G.mode === 'hockey') {
+        HK.puck.x = -d.p[0]; HK.puck.z = -d.p[1];
+        HK.rx = -d.hx; HK.rz = -d.hz;
+        if (d.rv !== HK.me || d.me !== HK.rival) vsGuestScore(HK, d);
+      } else if (d.g === 'volley' && G.mode === 'volley') {
+        VB.ball.set(-d.b[0], d.b[1], -d.b[2]);
+        VB.rx = -d.hx;
+        if (d.rv !== VB.me || d.me !== VB.rival) vsGuestScore(VB, d);
+      }
+    }
+    function vsFromGuest(d) {
+      if (d.g === 'hockey') { HK.rnx = -d.x; HK.rnz = -d.z; }
+      else if (d.g === 'volley') VB.rnx = -d.x;
+    }
+
+    /* ---------- Registro de los 6 juegos ---------- */
+    const NEW_GAMES = {
+      bowl:   { label: 'BOLOS',    color: '#3949AB', scene: bowlScene,   update: updateBowl,   reset: bowlNewGame, hello: '🎳 ¡A tumbar pinos!',   name: 'Bolos',
+                hint: 'Arrastra hacia arriba (fuerza) y a los lados (dirección). Los puntos muestran el camino. Suelta para lanzar',
+                layout: { scale: 1, nearZ: 0.6, d: 0.4, markerZ: -2.0, mScale: 1 },
+                aim: bowlAim, release: (d) => { if (d.dy > 25) bowlThrow(); else $('bowlDots').object3D.visible = false; } },
+      golf:   { label: 'MINIGOLF', color: '#2E7D32', scene: golfScene,   update: updateGolf,   reset: () => { GF.total = 0; golfLoadHole(0); }, hello: '⛳ ¡Minigolf!', name: 'Minigolf',
+                hint: 'Arrastra hacia donde quieras golpear: más largo = más fuerte. Suelta para pegarle a la bola',
+                layout: { scale: 1, nearZ: 0.45, d: 0.35, markerZ: -1.6, mScale: 1 },
+                aim: golfAim, release: (d) => { if (hypot(d.dx, d.dy) > 25) golfHit(); else $('golfDots').object3D.visible = false; } },
+      darts:  { label: 'DARDOS',   color: '#C62828', scene: dartsScene,  update: updateDarts,  reset: dartsNew,    hello: '🎯 ¡Dardos!',          name: 'Dardos',
+                hint: 'Arrastra para mover la mira azul sobre la diana (tu mano tiembla un poco). Suelta para lanzar',
+                layout: { scale: 1, nearZ: 0, d: 0.3, markerZ: -2.0, mScale: 1 },
+                aim: dartsAim, release: () => dartsThrow() },
+      volley: { label: 'VOLEIBOL', color: '#F9A825', scene: volleyScene, update: updateVolley, reset: volleyNew,   hello: '🏐 ¡Voleibol de playa!', name: 'Voleibol', vs: VB,
+                hint: 'Desliza el dedo a los lados para ponerte debajo del balón: tu jugador lo golpea solo',
+                layout: { scale: 1, nearZ: 2.6, d: 1.4, markerZ: 0, mScale: 1 },
+                finger: volleyFinger },
+      hockey: { label: 'AIR HOCKEY', color: '#1E88E5', scene: hockeyScene, update: updateHockey, reset: hockeyNew, hello: '🏒 ¡Air hockey!',      name: 'Air hockey', vs: HK,
+                hint: 'Mueve tu mazo rojo con el dedo por tu mitad de la mesa. Mete el disco en el arco azul',
+                layout: { scale: 1, nearZ: 1.0, d: 0.55, markerZ: 0, mScale: 1 },
+                finger: hockeyFinger },
+      rings:  { label: 'AROS',     color: '#D81B60', scene: ringsScene,  update: updateRings,  reset: ringsNew,    hello: '🎪 ¡Lanza los aros!',  name: 'Aros',
+                hint: 'Arrastra: arriba = más lejos, lados = dirección. El círculo azul marca dónde cae. Suelta para lanzar',
+                layout: { scale: 1, nearZ: 0, d: 0.4, markerZ: -1.6, mScale: 1 },
+                aim: ringsAim, release: (d) => { if (d.dy > 20) ringsThrow(); else { $('ringsAim').object3D.visible = false; $('ringsDots').object3D.visible = false; } } }
+    };
+    const DUEL_GAMES = ['basket', 'bowl', 'golf', 'darts', 'rings'];
+
+    // Íconos de los portales nuevos
+    const PORTAL_ICON = {
+      bowl:   `<a-sphere radius="0.075" position="-0.04 -0.02 0" color="#ffffff" ptex="type: marble; color: #1565C0"></a-sphere>
+               <a-entity position="0.07 -0.08 0" scale="0.6 0.6 0.6"><a-cylinder radius="0.045" height="0.2" position="0 0.1 0" color="#FAFAFA"></a-cylinder><a-sphere radius="0.06" position="0 0.17 0" color="#FAFAFA"></a-sphere><a-cylinder radius="0.033" height="0.012" position="0 0.27 0" color="#D32F2F"></a-cylinder><a-sphere radius="0.036" position="0 0.31 0" color="#FAFAFA"></a-sphere></a-entity>`,
+      golf:   `<a-sphere radius="0.05" position="-0.03 -0.05 0" color="#FFFFFF"></a-sphere>
+               <a-cylinder radius="0.005" height="0.22" position="0.05 0.0 0" color="#ECEFF1"></a-cylinder><a-plane width="0.08" height="0.05" position="0.09 0.08 0" material="color: #FF1744; side: double"></a-plane>`,
+      darts:  `<a-circle radius="0.1" color="#ffffff" ptex="type: dartboard" material="side: double"></a-circle>`,
+      volley: `<a-sphere radius="0.1" color="#ffffff" ptex="type: volley"></a-sphere>`,
+      hockey: `<a-cylinder radius="0.06" height="0.02" rotation="70 0 0" position="-0.03 -0.02 0" color="#E53935"></a-cylinder><a-sphere radius="0.03" position="-0.03 0.02 0.02" color="#E53935"></a-sphere>
+               <a-cylinder radius="0.04" height="0.012" rotation="70 0 0" position="0.07 -0.06 0.02" color="#212121"></a-cylinder>`,
+      rings:  `<a-torus radius="0.07" radius-tubular="0.012" rotation="70 0 0" color="#FFEA00"></a-torus><a-cylinder radius="0.02" height="0.14" position="0 -0.02 0" material="color: #43A047; opacity: 0.85; transparent: true"></a-cylinder>`
+    };
+    function portalHTML(id, game, label, color, icon) {
+      return `<a-entity id="${id}" class="portal" scale="0.001 0.001 0.001"
+          animation__show="property: scale; to: 1 1 1; dur: 700; delay: ${Math.floor(Math.random() * 300)}; easing: easeOutElastic; startEvents: show">
+        <a-entity animation__bob="property: position; from: 0 -0.025 0; to: 0 0.025 0; dir: alternate; loop: true; dur: ${1100 + Math.floor(Math.random() * 400)}; easing: easeInOutSine">
+          <a-entity animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear">${icon}</a-entity>
+          <a-torus radius="0.17" radius-tubular="0.011" color="${color}" material="metalness: 0.6; roughness: 0.3; emissive: ${color}; emissiveIntensity: 0.6"
+            animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 2500; easing: linear"></a-torus>
+          <a-sphere radius="0.15" material="shader: flat; color: ${color}; opacity: 0.15; transparent: true; depthWrite: false"
+            animation__pulse="property: scale; from: 1 1 1; to: 1.25 1.25 1.25; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-sphere>
+          <a-entity position="0 -0.24 0">
+            <a-plane width="${(0.09 + label.length * 0.036).toFixed(2)}" height="0.08" color="${color}" material="shader: flat; opacity: 0.88; transparent: true; side: double"></a-plane>
+            <a-entity canvas-text="text: ${label}; color: #FFFFFF; width: 1.0" position="0 0 0.002"></a-entity>
+          </a-entity>
+          <a-sphere class="portal-hit" data-game="${game}" radius="0.22" material="opacity: 0; transparent: true; depthWrite: false"></a-sphere>
+        </a-entity>
+      </a-entity>`;
+    }
+    // Posiciones de los 9 portales alrededor del cofre
+    const PORTAL_SPOTS = {
+      portalPing: [-1.0, 1.0, -0.12], portalSoccer: [-0.5, 1.1, -0.2], rings: [0, 1.15, -0.25], bowl: [0.5, 1.1, -0.2], golf: [1.0, 1.0, -0.12],
+      portalBasket: [-1.1, 0.42, 0.15], volley: [-0.62, 0.38, 0.32], hockey: [0.62, 0.38, 0.32], darts: [1.1, 0.42, 0.15]
+    };
+    function setupNewGames() {
+      const world = $('world'), portals = $('portals');
+      for (const g in NEW_GAMES) {
+        const N = NEW_GAMES[g];
+        world.insertAdjacentHTML('beforeend', N.scene());
+        portals.insertAdjacentHTML('beforeend', portalHTML('portal_' + g, g, N.label, N.color, PORTAL_ICON[g]));
+        document.body.insertAdjacentHTML('beforeend', `<div id="${g}Controls" class="controls gcard hidden">
+          <div class="card"><div class="stats" id="${g}Stats"></div><p class="hint">${N.hint}</p></div></div>`);
+        GAMES[g] = { group: g + 'Game', controls: g + 'Controls', reset: N.reset, hello: N.hello, name: N.name, update: N.update, vs: N.vs };
+        LAYOUT[g] = N.layout;
+      }
+      // Reacomodar los 9 portales
+      const pos = (id, p) => { const el = $(id); if (el) el.setAttribute('position', p.join(' ')); };
+      pos('portalBasket', PORTAL_SPOTS.portalBasket); pos('portalPing', PORTAL_SPOTS.portalPing); pos('portalSoccer', PORTAL_SPOTS.portalSoccer);
+      for (const g in NEW_GAMES) pos('portal_' + g, PORTAL_SPOTS[g]);
+      ['portalBasket', 'portalPing', 'portalSoccer'].forEach(id => $(id).classList.add('portal'));
+      makeDots('bowlDots', 16, '#FFEA00', 0.022);
+      makeDots('golfDots', 13, '#FFFFFF', 0.01);
+      makeDots('ringsDots', 15, '#00E5FF', 0.01);
+    }
+
     /* =========================================================
        PENALES ONLINE (Fútbol): uno patea y el otro tapa; cambian cada tiro
        ========================================================= */
@@ -1901,9 +2999,9 @@
       updateDuelPill();
       setTimeout(() => toast('⚔️ Duelo de 60 s'), 1300);
     }
-    function duelPoint() {
+    function duelPoint(n) {
       if (!DUEL.on) return;
-      DUEL.mine += 10;
+      DUEL.mine += (n || 10);
       netSend({ t: 'duel', s: DUEL.mine });
       updateDuelPill();
     }
@@ -2079,8 +3177,13 @@
           if (G.mode !== d.g) goGame(d.g, true);
           else if (d.g === 'ping') { P.online = true; resetPingMatch(); }
           else if (d.g === 'soccer') { if (!PEN.on) { startPenalties(); resetSoccerBall(); } }
-          else if (d.g === 'basket' && !DUEL.on) startDuel(d.g);
+          else if (DUEL_GAMES.includes(d.g) && !DUEL.on) startDuel(d.g);
+          else if (GAMES[d.g] && GAMES[d.g].vs) { GAMES[d.g].vs.online = true; GAMES[d.g].reset(); }
           break;
+        case 'vs':
+          if (!NET.isHost) vsFromHost(d); break;
+        case 'vsx':
+          if (NET.isHost) vsFromGuest(d); break;
         case 'bshot':
           ghostShot(d.p, d.lat); break;
         case 'kx':
@@ -2097,7 +3200,7 @@
         case 'menu':
           if (GAMES[G.mode]) backToMenu(true); break;
         case 'duel':
-          if (d.s > DUEL.theirs && G.mode === 'basket') toast('🏀 Canasta de ' + NET.rivalName);
+          if (d.s > DUEL.theirs && DUEL_GAMES.includes(G.mode)) toast(`⭐ ${NET.rivalName} sumó ${d.s - DUEL.theirs}`);
           DUEL.theirs = d.s; updateDuelPill(); break;
         case 'pp':
           if (!NET.isHost) applyPingFromHost(d); break;
@@ -2122,6 +3225,7 @@
       endDuel(true);
       if (PEN.on) { stopPenalties(); resetSoccerBall(); }
       if (G.mode === 'ping') { P.online = false; resetPingMatch(); }
+      if (GAMES[G.mode] && GAMES[G.mode].vs) { GAMES[G.mode].vs.online = false; GAMES[G.mode].reset(); }
       registrarInteraccion('Rival desconectado', NET.rivalName);
     }
 
@@ -2196,17 +3300,14 @@
     // Sin tarjeta: el punto "nearZ" del juego queda a "d" metros delante de ti, sobre el piso.
     // Con tarjeta: el punto "markerZ" del juego queda encima de la tarjeta.
     const LAYOUT = {
-      menu:   { scale: 1.6, nearZ: 0.0,  d: 3.0, markerZ: 0.0 },    // cofre de 80 cm
+      menu:   { scale: 1.6, nearZ: 0.0,  d: 3.4, markerZ: 0.0 },    // cofre de 80 cm
       ping:   { scale: 2.0, nearZ: 0.68, d: 1.0, markerZ: -0.1 },   // mesa oficial 1.52 x 2.74 m
       soccer: { scale: 3.0, nearZ: 0.4,  d: 2.0, markerZ: -0.3, mScale: 2.2 },
       basket: { scale: 2.6, nearZ: 0.3,  d: 1.6, markerZ: -0.35, mScale: 2.2 }
     };
     function layout() { return LAYOUT[GAMES[G.mode] ? G.mode : 'menu']; }
     function focusEl() {
-      if (G.mode === 'basket') return $('basketFocus');
-      if (G.mode === 'soccer') return $('soccerFocus');
-      if (G.mode === 'ping') return $('pingFocus');
-      return $('chestFocus');
+      return (GAMES[G.mode] && $(G.mode + 'Focus')) || $('chestFocus');
     }
     const _ws = new THREE.Vector3();
     function updateShadows() {
@@ -2230,7 +3331,7 @@
       } else {
         const sc = L.scale;
         let d = L.d;
-        if (!GAMES[G.mode] && window.innerHeight > window.innerWidth) d = 4.2;   // vertical: caben los 3 portales
+        if (!GAMES[G.mode] && window.innerHeight > window.innerWidth) d = 6.5;   // vertical: caben los 3 portales
         w.scale.setScalar(sc);
         w.position.set(0, -PREFS.height, -d - L.nearZ * sc);
         updateShadows(sc);
@@ -2354,6 +3455,7 @@
         if (G.mode === 'basket') updateBasket(dt);
         else if (G.mode === 'soccer') updateSoccer(dt);
         else if (G.mode === 'ping') updatePing(dt);
+        else if (GAMES[G.mode] && GAMES[G.mode].update) GAMES[G.mode].update(dt);
         updateDuel();
       }
     });
@@ -2363,6 +3465,7 @@
        ========================================================= */
     window.addEventListener('DOMContentLoaded', () => {
       const scene = $('scene');
+      setupNewGames();
 
       try { G.record = parseInt(localStorage.getItem('arCofreRecord') || '0', 10) || 0; } catch (e) {}
       try { const p = JSON.parse(localStorage.getItem('arCofrePrefs3') || '{}'); if (p.color && !/^#/.test(p.color)) delete p.color; Object.assign(PREFS, p); } catch (e) {}
@@ -2462,12 +3565,20 @@
       const keeperFromX = (x) => { PEN.myKx = clamp((x / window.innerWidth - 0.5) * 1.1, -0.42, 0.42); };
       window.addEventListener('pointerdown', (e) => {
         if (e.target.closest('.ui')) return;
+        const NG = NEW_GAMES[G.mode];
+        if (NG) { if (NG.finger) NG.finger(e); else sw = { x: e.clientX, y: e.clientY, mode: G.mode }; return; }
         if (G.mode === 'ping') { paddleFromX(e.clientX); return; }
         if (G.mode === 'soccer' && PEN.on && PEN.role === 'keep') { keeperFromX(e.clientX); return; }
         if (G.mode === 'basket' || G.mode === 'soccer') sw = { x: e.clientX, y: e.clientY, mode: G.mode };
       });
       window.addEventListener('pointermove', (e) => {
         if (e.target.closest && e.target.closest('.ui')) return;
+        const NG = NEW_GAMES[G.mode];
+        if (NG) {
+          if (NG.finger) { if (e.pointerType !== 'mouse' || e.buttons) NG.finger(e); }
+          else if (sw && sw.mode === G.mode) NG.aim(dragOf(e));
+          return;
+        }
         if (G.mode === 'ping') { paddleFromX(e.clientX); return; }
         if (G.mode === 'soccer' && PEN.on && PEN.role === 'keep') { keeperFromX(e.clientX); return; }
         if (!sw || sw.mode !== G.mode) return;
@@ -2482,6 +3593,7 @@
         const d = dragOf(e), mode = sw.mode;
         sw = null;
         if (mode !== G.mode) return;
+        if (NEW_GAMES[mode]) { NEW_GAMES[mode].release(d); return; }
         if (mode === 'basket') {
           if (d.dy < 30) { hideTraj(); return; }
           shootBasket(0.7 + d.norm * 0.6, d.side * 0.9);
