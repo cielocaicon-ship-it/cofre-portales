@@ -32,8 +32,6 @@
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <!-- PeerJS: conexión directa entre dos celulares para el modo online -->
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <!-- Generador de códigos QR (para abrir la tarjeta en otro celular) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 
   <style>
     :root {
@@ -304,20 +302,6 @@
       <p class="tip">📷 Realidad aumentada sin marcador · 🌐 Solo u online</p>
     </div>
     <div class="col">
-      <div class="mode-row">
-        <button class="mode-btn active" data-place="free">📱 Sin tarjeta</button>
-        <button class="mode-btn" data-place="marker">🃏 Con tarjeta en el piso<br><small>(más real)</small></button>
-      </div>
-      <div id="markerInfo" class="marker-info hidden">
-        <p>Imprime esta tarjeta (o ábrela en otro celular) y ponla <b>acostada en el piso</b>. El juego sale encima de ella.</p>
-        <div class="card-row">
-          <a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener"><img class="marker-thumb" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" alt="Tarjeta marcador" /></a>
-          <div class="qr-box"><div id="cardQr"></div><span>Escanéalo con otro celular para abrir la tarjeta</span></div>
-        </div>
-        <a class="linkbtn" href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener">🔍 Abrir la tarjeta en grande (para imprimir)</a>
-        <label class="cm-row">Ancho de la tarjeta: <input id="markerCm" type="number" min="4" max="80" step="0.5" value="20" /> cm</label>
-        <p class="small">Mídela con una regla: así todo sale de tamaño real.</p>
-      </div>
       <input id="playerName" class="name-input" maxlength="12" placeholder="Tu nombre" autocomplete="off" />
       <button id="btnSolo" class="big">🎮 JUGAR SOLO</button>
       <button id="btnQuick" class="big alt">🌐 MULTIJUGADOR ONLINE</button>
@@ -361,7 +345,7 @@
         <button class="mode-btn" data-height="1.45">🧍 De pie</button>
         <button class="mode-btn" data-height="1.0">🪑 Sentada</button>
       </div>
-      <p class="small">Así el juego queda justo sobre tu piso (modo sin tarjeta).</p>
+      <p class="small">Así el juego queda justo sobre tu piso.</p>
     </div>
     <label>Color del balón</label>
     <div class="swatches">
