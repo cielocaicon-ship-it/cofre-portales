@@ -285,6 +285,19 @@
     }
     .foot-stat.good { border-color: #00E676; background: rgba(0,120,60,.75); }
     .foot-stat.bad { border-color: #FFB300; }
+
+    /* ---------- Control con la mano ---------- */
+    #handCursor {
+      --p: 0; position: fixed; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%; opacity: 0;
+      pointer-events: none; z-index: 60; transition: opacity .2s;
+      background: conic-gradient(#FFD54F calc(var(--p) * 1turn), rgba(255,255,255,.3) 0);
+      -webkit-mask: radial-gradient(circle, transparent 17px, #000 18px); mask: radial-gradient(circle, transparent 17px, #000 18px);
+      filter: drop-shadow(0 0 6px #FFD54F);
+    }
+    #handCursor::after { content: ""; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: #FFD54F; }
+    #handCursor.pinch { background: #FFFFFF; filter: drop-shadow(0 0 10px #fff); }
+    .hand-stat { top: auto; bottom: calc(var(--sb) + 150px); }
+    .mode-btn small { font-size: 11px; }
   </style>
 </head>
 <body>
@@ -302,6 +315,11 @@
       <p class="tip">📷 Realidad aumentada sin marcador · 🌐 Solo u online</p>
     </div>
     <div class="col">
+      <p class="tip">¿Cómo quieres jugar?</p>
+      <div class="mode-row">
+        <button class="mode-btn active" data-ctrl="touch">👆 Con el dedo<br><small>en la pantalla</small></button>
+        <button class="mode-btn" data-ctrl="hand">✋ Con tu mano<br><small>frente a la cámara</small></button>
+      </div>
       <input id="playerName" class="name-input" maxlength="12" placeholder="Tu nombre" autocomplete="off" />
       <button id="btnSolo" class="big">🎮 JUGAR SOLO</button>
       <button id="btnQuick" class="big alt">🌐 MULTIJUGADOR ONLINE</button>
@@ -327,6 +345,7 @@
     </div>
     <div class="hud-right">
       <span id="netPill" class="pill hidden"></span>
+      <button id="btnHand" class="ui-btn ui" title="Control con la mano">✋</button>
       <button id="btnSound" class="ui-btn ui" title="Sonido">🔊</button>
       <button id="btnCenter" class="ui-btn ui wide" title="Centrar">🎯<span class="lbl"> Centrar</span></button>
       <button id="btnPanel" class="ui-btn ui" title="Panel de controles">🎨</button>
@@ -380,6 +399,8 @@
     </div>
   </div>
   <div id="footStat" class="foot-stat hidden"></div>
+  <div id="handStat" class="foot-stat hand-stat hidden"></div>
+  <div id="handCursor"></div>
 
   <!-- Controles ping-pong (abajo al centro) -->
   <div id="pingControls" class="controls hidden">
@@ -1081,6 +1102,7 @@
       score: 0,
       record: 0,
       started: false,
+      ctrl: 'touch',          // touch (dedo en la pantalla) | hand (mano frente a la cámara)
       place: 'free',          // free (sin tarjeta) | marker (con tarjeta)
       streak: 0
     };
@@ -1360,6 +1382,7 @@
       refreshRaycaster();
       refreshStatus();
       toast(cfg.hello);
+      if (HAND.on) setTimeout(() => setHandStat(cfg.vs || game === 'ping' ? '☝️ Mueve el índice a los lados para moverte' : '🤏 Junta pulgar e índice, mueve y separa para lanzar', 'good'), 1400), setTimeout(() => { if (HAND.on && HAND.present) setHandStat(''); }, 5500);
       if (G.gyro && G.place !== 'marker') setTimeout(() => setStatus('📱 Gira el celular para recorrer la cancha · 🎯 Centrar la pone frente a ti'), 1500);
       sfx.portal(); missed();
       registrarInteraccion('Entrar a minijuego', cfg.name);
@@ -3090,6 +3113,166 @@
     }
 
     /* =========================================================
+       ✋ CONTROL CON TU MANO (igual que en Florida/Carolina AR)
+       Pones la otra mano frente a la cámara trasera: la punta de tu
+       dedo índice es el cursor. Juntar pulgar + índice (pinza) = tocar
+       y arrastrar; separarlos = soltar. Dejar el dedo quieto sobre un
+       botón o un portal lo selecciona.
+       Usa MediaPipe Hand Landmarker (21 puntos de la mano).
+       ========================================================= */
+    const HAND_VER = '0.10.14';
+    const HAND_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${HAND_VER}`;
+    const HAND_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+    // Ajustes: GAIN = cuánto se amplía el movimiento (no tienes que llegar a los bordes)
+    //          DWELL_BTN / DWELL_3D = segundos con el dedo quieto para seleccionar
+    const HANDCFG = { GAIN: 1.4, DWELL_BTN: 0.9, DWELL_3D: 0.6, PINCH_ON: 0.28, PINCH_OFF: 0.45 };
+    const HAND = { on: false, lm: null, x: innerWidth / 2, y: innerHeight / 2, present: false, pinch: false,
+                   seen: 0, lastRun: 0, lastTime: -1, dKey: null, dT: 0, dDone: false, lastFrame: 0, said: false };
+    async function startHandMode() {
+      if (HAND.on) return true;
+      if (!document.body.classList.contains('cam-on')) { toast('📷 Necesito la cámara para ver tu mano'); return false; }
+      setHandStat('⏳ Cargando el detector de manos…', '');
+      try {
+        if (!HAND.lm) {
+          const { FilesetResolver, HandLandmarker } = await import(`${HAND_BASE}/vision_bundle.mjs`);
+          const files = await FilesetResolver.forVisionTasks(`${HAND_BASE}/wasm`);
+          const opts = (delegate) => ({
+            baseOptions: { modelAssetPath: HAND_MODEL, delegate },
+            runningMode: 'VIDEO', numHands: 1,
+            minHandDetectionConfidence: 0.4, minHandPresenceConfidence: 0.4, minTrackingConfidence: 0.4
+          });
+          try { HAND.lm = await HandLandmarker.createFromOptions(files, opts('GPU')); }
+          catch (e) { HAND.lm = await HandLandmarker.createFromOptions(files, opts('CPU')); }
+        }
+      } catch (e) {
+        setHandStat('');
+        toast('⚠️ No se pudo cargar el detector de manos');
+        return false;
+      }
+      HAND.on = true; HAND.seen = performance.now(); HAND.said = false;
+      document.body.classList.add('hand-mode');
+      updateCursor();
+      handLoop();
+      return true;
+    }
+    function stopHandMode() {
+      HAND.on = false;
+      if (HAND.pinch) { HAND.pinch = false; handEmit('pointerup'); }
+      document.body.classList.remove('hand-mode');
+      $('handCursor').style.opacity = 0;
+      setHandStat('');
+      updateCursor();
+    }
+    function setHandStat(txt, cls) {
+      const el = $('handStat');
+      el.textContent = txt; el.className = 'foot-stat hand-stat ' + (cls || '');
+      el.classList.toggle('hidden', !txt);
+    }
+    // Coordenadas del video (0..1) -> píxeles de pantalla (el video se ve con "cover")
+    function handToScreen(nx, ny) {
+      const v = $('camfeed'), g = HANDCFG.GAIN;
+      nx = 0.5 + (nx - 0.5) * g; ny = 0.5 + (ny - 0.5) * g;
+      const vw = v.videoWidth || 640, vh = v.videoHeight || 480, W = innerWidth, H = innerHeight;
+      const k = Math.max(W / vw, H / vh), dw = vw * k, dh = vh * k;
+      return [clamp((W - dw) / 2 + nx * dw, 0, W), clamp((H - dh) / 2 + ny * dh, 0, H)];
+    }
+    // Manda al juego los mismos eventos que un dedo en la pantalla
+    function handEmit(type) {
+      const el = document.elementFromPoint(HAND.x, HAND.y) || document.body;
+      el.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, clientX: HAND.x, clientY: HAND.y,
+        pointerType: 'touch', pointerId: 77, isPrimary: true, buttons: type === 'pointerup' ? 0 : 1
+      }));
+    }
+    function handLoop() {
+      if (!HAND.on) return;
+      requestAnimationFrame(handLoop);
+      const now = performance.now(), dt = Math.min(0.1, (now - (HAND.lastFrame || now)) / 1000);
+      HAND.lastFrame = now;
+      handDwell(dt);
+      if (!HAND.present && now - HAND.seen > 1500) setHandStat('✋ No veo tu mano: ponla frente a la cámara de atrás', 'bad');
+      const v = $('camfeed');
+      if (now - HAND.lastRun < 33 || v.readyState < 2 || v.currentTime === HAND.lastTime) return;
+      HAND.lastRun = now; HAND.lastTime = v.currentTime;
+      let r;
+      try { r = HAND.lm.detectForVideo(v, now); } catch (e) { return; }
+      const p = r.landmarks && r.landmarks[0];
+      const cur = $('handCursor');
+      if (!p) {
+        HAND.present = false; cur.style.opacity = 0;
+        if (HAND.pinch) { HAND.pinch = false; handEmit('pointerup'); }
+        return;
+      }
+      HAND.present = true; HAND.seen = now;
+      if (!HAND.said) { HAND.said = true; setHandStat('☝️ ¡Te veo! Junta pulgar e índice para agarrar', 'good'); setTimeout(() => { if (HAND.on && HAND.present) setHandStat(''); }, 3000); }
+      else if ($('handStat').classList.contains('bad')) setHandStat('');
+      // Pinza: distancia pulgar-índice comparada con el tamaño de la mano (con histéresis)
+      const W = v.videoWidth, Hh = v.videoHeight;
+      const d = (a, b) => Math.hypot((p[a].x - p[b].x) * W, (p[a].y - p[b].y) * Hh);
+      const ratio = d(4, 8) / (d(0, 9) || 1);
+      const pinch = HAND.pinch ? ratio < HANDCFG.PINCH_OFF : ratio < HANDCFG.PINCH_ON;
+      // Cursor en la punta del índice, con suavizado (rápido si te mueves mucho, suave si casi no)
+      const [tx, ty] = handToScreen(p[8].x, p[8].y);
+      const a = clamp(0.25 + Math.hypot(tx - HAND.x, ty - HAND.y) / 220, 0.25, 0.85);
+      HAND.x += (tx - HAND.x) * a; HAND.y += (ty - HAND.y) * a;
+      cur.style.opacity = 1;
+      cur.style.transform = `translate(${HAND.x}px, ${HAND.y}px)`;
+      cur.classList.toggle('pinch', pinch);
+      if (pinch && !HAND.pinch) { handEmit('pointerdown'); if (navigator.vibrate) navigator.vibrate(20); }
+      else if (!pinch && HAND.pinch) handEmit('pointerup');
+      else handEmit('pointermove');
+      HAND.pinch = pinch;
+    }
+    // Objetos 3D que se pueden tocar (cofre y portales) bajo el dedo
+    const _hr = new THREE.Raycaster(), _hn = new THREE.Vector2();
+    function handPick(x, y) {
+      const cam = $('scene').camera; if (!cam) return null;
+      _hn.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
+      _hr.setFromCamera(_hn, cam);
+      const objs = [...document.querySelectorAll('.clickable')].map(e => e.object3D);
+      const hits = _hr.intersectObjects(objs, true);
+      for (const h of hits) {
+        let o = h.object;
+        while (o && !(o.el && o.el.classList && o.el.classList.contains('clickable'))) o = o.parent;
+        if (o) return o.el;
+      }
+      return null;
+    }
+    // Seleccionar dejando el dedo quieto encima (botones y portales)
+    function handDwell(dt) {
+      const cur = $('handCursor');
+      if (!HAND.present || HAND.pinch) { HAND.dKey = null; cur.style.setProperty('--p', 0); return; }
+      let key = null, isBtn = false;
+      const el = document.elementFromPoint(HAND.x, HAND.y);
+      const btn = el && el.closest && el.closest('button');
+      if (btn && !btn.disabled && btn.offsetParent !== null) { key = btn; isBtn = true; }
+      else if (G.mode === 'chest' || G.mode === 'menu') key = handPick(HAND.x, HAND.y);
+      if (key !== HAND.dKey) { HAND.dKey = key; HAND.dT = 0; HAND.dDone = false; }
+      const need = isBtn ? HANDCFG.DWELL_BTN : HANDCFG.DWELL_3D;
+      if (key && !HAND.dDone) {
+        HAND.dT += dt;
+        if (HAND.dT >= need) {
+          HAND.dDone = true;
+          sfx.tap();
+          if (isBtn) key.click(); else key.emit('click');
+        }
+      }
+      cur.style.setProperty('--p', key && !HAND.dDone ? clamp(HAND.dT / need, 0, 1) : 0);
+    }
+    function setCtrl(c) {
+      G.ctrl = c;
+      document.querySelectorAll('[data-ctrl]').forEach(b => b.classList.toggle('active', b.dataset.ctrl === c));
+      try { localStorage.setItem('arCofreControl', c); } catch (e) {}
+      $('btnHand').textContent = c === 'hand' ? '👆' : '✋';
+    }
+    async function toggleHand() {
+      if (HAND.on) { stopHandMode(); setCtrl('touch'); toast('👆 Control con el dedo en la pantalla'); return; }
+      setCtrl('hand');
+      const ok = await startHandMode();
+      if (ok) toast('✋ ¡Tu mano es el control!'); else setCtrl('touch');
+    }
+
+    /* =========================================================
        PENALES ONLINE (Fútbol): uno patea y el otro tapa; cambian cada tiro
        ========================================================= */
     const PEN = { on: false, role: 'shoot', mine: 0, theirs: 0, kicks: 0, MAX: 10, myKx: 0, kxNet: 0, lastSend: 0 };
@@ -3430,7 +3613,7 @@
     }
     // El círculo amarillo solo sirve para elegir en el cofre; en los juegos se esconde
     function updateCursor() {
-      $('cursor-raycast').setAttribute('visible', G.gyro && !GAMES[G.mode]);
+      $('cursor-raycast').setAttribute('visible', G.gyro && !GAMES[G.mode] && !HAND.on);
     }
     function fitFov() {
       // La cámara trasera ve ~68° en su lado largo. Con el video "cover":
@@ -3665,6 +3848,11 @@
         if (!camOk) toast('📷 Sin cámara: modo pantalla');
         else if (gyro) setTimeout(() => { if (!online()) setStatus('💡 El cofre está en tu piso. Si quedó a un lado, apunta al frente y pulsa 🎯 Centrar'); }, 4500);
         if (netAction) netAction();
+        if (G.ctrl === 'hand') {
+          const ok = await startHandMode();
+          if (ok) setTimeout(() => toast('✋ Señala con el índice · deja el dedo quieto para elegir'), 1200);
+          else setCtrl('touch');
+        }
       }
       $('btnSolo').addEventListener('click', () => begin(null));
       $('btnQuick').addEventListener('click', () => begin(quickMatch));
@@ -3685,6 +3873,9 @@
       // Botones HTML
       $('btnMenu').addEventListener('click', () => backToMenu(false));
       $('btnCenter').addEventListener('click', () => { recenter(); sfx.tap(); toast('🎯 Centrado'); });
+      document.querySelectorAll('[data-ctrl]').forEach(b => b.addEventListener('click', () => setCtrl(b.dataset.ctrl)));
+      try { setCtrl(localStorage.getItem('arCofreControl') || 'touch'); } catch (e) { setCtrl('touch'); }
+      $('btnHand').addEventListener('click', () => { sfx.tap(); toggleHand(); });
       $('btnFoot').addEventListener('click', () => { sfx.tap(); setFootMode(!FOOT.on); });
       $('btnSens').addEventListener('click', () => {
         const opts = [1, 1.5, 2, 0.7];
