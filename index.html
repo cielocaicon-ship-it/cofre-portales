@@ -276,6 +276,17 @@
       .gcard { left: var(--sl); transform: none; width: min(34vw, 300px); }
       .gcard .hint { font-size: 11px; }
     }
+
+    /* ---------- Modo pie ---------- */
+    .foot-row { display: flex; gap: 8px; justify-content: center; margin-top: 6px; }
+    .foot-row .ui-btn { height: 38px; font-size: 13px; }
+    .foot-stat {
+      position: fixed; left: 50%; top: calc(var(--st) + 58px); transform: translateX(-50%); z-index: 25; pointer-events: none;
+      padding: 10px 18px; border-radius: 16px; font-weight: 800; font-size: clamp(14px, 2.4vmax, 19px);
+      background: rgba(20,8,48,.7); border: 2px solid rgba(255,255,255,.3); color: #fff; text-align: center; max-width: 86vw;
+    }
+    .foot-stat.good { border-color: #00E676; background: rgba(0,120,60,.75); }
+    .foot-stat.bad { border-color: #FFB300; }
   </style>
 </head>
 <body>
@@ -378,8 +389,13 @@
     <div class="card">
       <div class="stats">⚽ <span id="sShots">0</span> tiros · 🥅 <span id="sGoals">0</span> goles</div>
       <p id="sHint" class="hint">Arrastra el dedo hacia arriba y a los lados: la mira amarilla muestra a dónde irá. Suelta para patear</p>
+      <div class="foot-row">
+        <button id="btnFoot" class="ui-btn wide ui">🦶 Patear con mi pie</button>
+        <button id="btnSens" class="ui-btn wide ui hidden">Sensib. x1</button>
+      </div>
     </div>
   </div>
+  <div id="footStat" class="foot-stat hidden"></div>
 
   <!-- Controles ping-pong (abajo al centro) -->
   <div id="pingControls" class="controls hidden">
@@ -641,7 +657,7 @@
         <a-entity id="soccerGame" position="0 0 -0.2" visible="false">
           <a-entity id="soccerFocus" position="0 0.1 -0.2"></a-entity>
           <!-- Pasto con franjas de corte -->
-          <a-plane width="3.6" height="6.0" rotation="-90 0 0" position="0 0 1.4" color="#ffffff"
+          <a-plane id="soccerGrass" width="3.6" height="6.0" rotation="-90 0 0" position="0 0 1.4" color="#ffffff"
             material="roughness: 0.95" ptex="type: grass; repeat: 2 2.5" shadow="cast: false; receive: true"></a-plane>
           <!-- Resto de la cancha -->
           <a-box width="2.8" height="0.003" depth="0.012" position="0 0.003 -0.9" color="#F5F5F5"></a-box>
@@ -1368,6 +1384,7 @@
     }
 
     function backToMenu(fromNet) {
+      if (FOOT.on) setFootMode(false);
       if (!GAMES[G.mode]) return;
       Object.values(GAMES).forEach(cfg => { show($(cfg.group), false); $(cfg.controls).classList.add('hidden'); });
       setClickable($('sballHit'), false);
@@ -2932,6 +2949,163 @@
     }
 
     /* =========================================================
+       ⚽🦶 PATEAR CON EL PIE (igual que en Florida/Carolina AR)
+       Apuntas la cámara trasera a tus pies: el balón queda en tu piso real.
+       La patada se detecta por MOVIMIENTO dentro del balón (diferencia entre
+       cuadros de video), sin inteligencia artificial: sirve con cualquier
+       zapato y no necesita ver el cuerpo entero.
+       ========================================================= */
+    // Umbrales (fracciones de píxeles que cambian entre un cuadro y el siguiente):
+    //   zone: cuánto debe cambiar el área del balón para contar como patada. Bajar = más fácil.
+    //   ratio: el balón debe moverse X veces más que el resto de la imagen (así mover el celular no cuenta).
+    //   calm: cuánto puede moverse el área del balón mientras "esperas" antes de patear.
+    //   diff: diferencia de brillo (0–255) para considerar que un píxel cambió.
+    const KICK = { zone: 0.14, ratio: 2.5, calm: 0.06, diff: 26, cooldown: 1100 };
+    const FOOT = { on: false, sens: 1, SW: 96, SHIFT: 5, AHEAD: 0.55, lastStat: '' };
+    // Cuánto se movió la imagen completa entre dos cuadros (la mano que sostiene el celular nunca está quieta)
+    function footGlobalShift(gray, prev, w, h, zone, R) {
+      const B2 = (zone.r * 2.6) ** 2;
+      let best = Infinity, bx = 0, by = 0;
+      for (let oy = -R; oy <= R; oy++) for (let ox = -R; ox <= R; ox++) {
+        let sad = 0, n = 0;
+        for (let y = R; y < h - R; y += 2) {
+          const dy = y - zone.y, row = y * w, prow = (y + oy) * w + ox;
+          for (let x = R; x < w - R; x += 2) {
+            const dx = x - zone.x; if (dx * dx + dy * dy < B2) continue;
+            sad += Math.abs(gray[row + x] - prev[prow + x]); n++;
+          }
+        }
+        sad = n ? sad / n : 0;
+        if (sad < best - 0.01 || (Math.abs(sad - best) <= 0.01 && ox * ox + oy * oy < bx * bx + by * by)) { best = sad; bx = ox; by = oy; }
+      }
+      return { dx: bx, dy: by };
+    }
+    function createMotionKick() {
+      let prev = null, hist = [], cdUntil = 0, pend = null;
+      return {
+        reset() { prev = null; hist = []; cdUntil = 0; pend = null; },
+        update(gray, w, h, zone, t) {
+          if (!prev || prev.length !== gray.length) { prev = gray.slice(); return { ready: false, ez: 0, eg: 0 }; }
+          const sh = footGlobalShift(gray, prev, w, h, zone, FOOT.SHIFT);
+          const R2 = zone.r * zone.r, B2 = (zone.r * 2.6) ** 2, D = KICK.diff;
+          let zc = 0, zn = 0, gc = 0, gn = 0, sx = 0, sy = 0, mc = 0;
+          for (let y = 0; y < h; y++) {
+            const dy = y - zone.y, py = y + sh.dy; if (py < 0 || py >= h) continue;
+            for (let x = 0; x < w; x++) {
+              const px = x + sh.dx; if (px < 0 || px >= w) continue;
+              const moved = Math.abs(gray[y * w + x] - prev[py * w + px]) > D, dx = x - zone.x, d2 = dx * dx + dy * dy;
+              if (d2 <= R2) { zn++; if (moved) zc++; }
+              if (d2 <= B2) { if (moved) { sx += x; sy += y; mc++; } } else { gn++; if (moved) gc++; }
+            }
+          }
+          prev.set(gray);
+          const ez = zn ? zc / zn : 0, eg = gn ? gc / gn : 0, c = mc > 4 ? { x: sx / mc, y: sy / mc } : null;
+          hist.push({ t, ez, eg, c }); while (hist.length && t - hist[0].t > 1200) hist.shift();
+          if (pend) {   // patada detectada: se mide hacia dónde va el pie ~0.1 s más y se dispara
+            if (c) pend.c1 = c;
+            if (t - pend.t0 < 100) return { ready: false, ez, eg, still: false };
+            let lat = 0;
+            if (pend.c0 && pend.c1) {
+              const dx = pend.c1.x - pend.c0.x, dy = pend.c1.y - pend.c0.y;
+              lat = clamp(dx / Math.max(Math.abs(dy), zone.r * 0.8) * 1.2, -1, 1); if (Math.abs(lat) < 0.15) lat = 0;
+            }
+            const kickR = { pw: pend.pw, lat }; pend = null; hist = [];
+            return { ready: false, ez, eg, still: false, kick: kickR };
+          }
+          const before = hist.filter(q => t - q.t >= 120 && t - q.t <= 700);
+          const calm = before.length >= 4 && before[before.length - 1].t - before[0].t >= 350 && before.every(q => q.ez < KICK.calm * 1.6) && before.reduce((s, q) => s + q.ez, 0) / before.length < KICK.calm;
+          const still = eg < 0.06;
+          const need = KICK.zone / FOOT.sens;
+          if (t > cdUntil && calm && ez > need && ez > KICK.ratio * eg + 0.03) {
+            const old = hist.find(q => t - q.t <= 220 && q.c);
+            pend = { t0: t, c0: old ? old.c : c, c1: c, pw: clamp(1 + (ez - need) * 1.5, 1, 1.3) };
+            cdUntil = t + KICK.cooldown;
+            return { ready: false, ez, eg, still };
+          }
+          return { ready: calm && still, ez, eg, still };
+        }
+      };
+    }
+    const footDet = createMotionKick();
+    let footCv = null, footG = null, footGray = null, footLastRun = 0, footLastTime = -1;
+    function footVideo() {
+      if (G.place === 'marker') return document.querySelector('video:not(#camfeed)') || $('camfeed');
+      return $('camfeed');
+    }
+    // Dónde está el balón dentro del video (en píxeles del video)
+    const _fz = new THREE.Vector3(), _fz2 = new THREE.Vector3(), _fq = new THREE.Quaternion();
+    function footZone(vw, vh) {
+      const cam = $('scene').camera; if (!cam) return null;
+      const ball = $('sball').object3D;
+      ball.getWorldPosition(_fz);
+      const W = window.innerWidth, Hh = window.innerHeight;
+      // radio del balón en pantalla: un punto a un lado del balón, en la dirección "derecha" de la cámara
+      cam.getWorldQuaternion(_fq);
+      const rWorld = S.R * $('soccerGame').object3D.getWorldScale(_fz2).x;
+      _fz2.set(1, 0, 0).applyQuaternion(_fq).multiplyScalar(rWorld).add(_fz);
+      _fz.project(cam); _fz2.project(cam);
+      if (_fz.z > 1 || Math.abs(_fz.x) > 1.2 || Math.abs(_fz.y) > 1.2) return null;   // el balón no está en pantalla
+      const sx = (_fz.x + 1) / 2 * W, sy = (1 - _fz.y) / 2 * Hh;
+      const sr = Math.hypot((_fz2.x - _fz.x) / 2 * W, (_fz2.y - _fz.y) / 2 * Hh);
+      // el video se ve con "cover": escalar y recortar igual que en pantalla
+      const k = Math.max(W / vw, Hh / vh), ox = (W - vw * k) / 2, oy = (Hh - vh * k) / 2;
+      return { x: (sx - ox) / k, y: (sy - oy) / k, r: Math.max(8, sr * 1.5 / k) };
+    }
+    function footLoop() {
+      if (!FOOT.on) return;
+      requestAnimationFrame(footLoop);
+      const video = footVideo(), now = performance.now();
+      if (!video || now - footLastRun < 30 || video.readyState < 2 || video.currentTime === footLastTime) return;
+      const vw = video.videoWidth, vh = video.videoHeight; if (!vw) return;
+      if (G.mode !== 'soccer' || S.state !== 'ready' || (PEN.on && PEN.role !== 'shoot')) { footStat(''); return; }
+      const z = footZone(vw, vh);
+      if (!z) { footStat('👇 Apunta la cámara a tus pies: el balón debe verse en pantalla', 'bad'); return; }
+      footLastRun = now; footLastTime = video.currentTime;
+      const SW = FOOT.SW, k = SW / vw, sh = Math.max(16, Math.round(vh * k));
+      footCv = footCv || document.createElement('canvas'); footG = footG || footCv.getContext('2d', { willReadFrequently: true });
+      if (footCv.width !== SW || footCv.height !== sh || !footGray) { footCv.width = SW; footCv.height = sh; footGray = new Uint8Array(SW * sh); footDet.reset(); }
+      try { footG.drawImage(video, 0, 0, SW, sh); } catch (e) { return; }
+      const px = footG.getImageData(0, 0, SW, sh).data;
+      for (let i = 0, j = 0; j < footGray.length; i += 4, j++) footGray[j] = (px[i] * 77 + px[i + 1] * 150 + px[i + 2] * 29) >> 8;
+      onFoot(footDet.update(footGray, SW, sh, { x: z.x * k, y: z.y * k, r: Math.max(3, z.r * k) }, now));
+    }
+    function footStat(txt, cls) {
+      const el = $('footStat');
+      if (FOOT.lastStat === txt + cls) return;
+      FOOT.lastStat = txt + cls;
+      el.textContent = txt; el.className = 'foot-stat ' + (cls || '');
+      el.classList.toggle('hidden', !txt);
+    }
+    function onFoot(r) {
+      if (r.kick) {
+        // pw 1..1.3 = fuerza · lat -1..1 = hacia dónde fue el pie (derecha = positivo)
+        const pow = clamp(0.45 + (r.kick.pw - 1) * 1.8, 0.4, 1);
+        const a = clamp(-r.kick.lat * 0.45, -0.6, 0.6);
+        S.aim = a; S.pow = pow;
+        if (navigator.vibrate) navigator.vibrate(50);
+        kick(a, pow);
+        footStat('');
+        return;
+      }
+      if (r.ready) footStat('✅ ¡Listo! Patea el balón', 'good');
+      else if (!r.still) footStat('✋ Quieto el celular… y pon el pie detrás del balón', 'bad');
+      else footStat('🦶 Pon el pie detrás del balón', '');
+    }
+    function setFootMode(on) {
+      FOOT.on = on;
+      $('btnFoot').textContent = on ? '👆 Jugar con el dedo' : '🦶 Patear con mi pie';
+      $('btnSens').classList.toggle('hidden', !on);
+      $('sHint').textContent = on
+        ? 'Apunta la cámara a tus pies. Pon el pie detrás del balón de tu piso y ¡patea! (un poco a un lado para apuntar)'
+        : 'Arrastra el dedo hacia arriba y a los lados: la mira amarilla muestra a dónde irá. Suelta para patear';
+      footDet.reset();
+      // En modo pie se ve tu piso real (sin pasto) para que veas tu zapato y el balón
+      $('soccerGrass').object3D.visible = !on;
+      if (on) { footLoop(); toast('🦶 ¡Patea con tu pie!'); } else footStat('');
+      recenter();
+    }
+
+    /* =========================================================
        PENALES ONLINE (Fútbol): uno patea y el otro tapa; cambian cada tiro
        ========================================================= */
     const PEN = { on: false, role: 'shoot', mine: 0, theirs: 0, kicks: 0, MAX: 10, myKx: 0, kxNet: 0, lastSend: 0 };
@@ -3334,6 +3508,8 @@
         if (!GAMES[G.mode] && window.innerHeight > window.innerWidth) d = 6.5;   // vertical: caben los 3 portales
         w.scale.setScalar(sc);
         w.position.set(0, -PREFS.height, -d - L.nearZ * sc);
+        // Modo pie: el balón queda en tu piso a ~55 cm delante de ti
+        if (G.mode === 'soccer' && FOOT.on) w.position.z = -FOOT.AHEAD - S.START.z * sc;
         updateShadows(sc);
       }
     }
@@ -3525,6 +3701,13 @@
       // Botones HTML
       $('btnMenu').addEventListener('click', () => backToMenu(false));
       $('btnCenter').addEventListener('click', () => { recenter(); sfx.tap(); toast('🎯 Centrado'); });
+      $('btnFoot').addEventListener('click', () => { sfx.tap(); setFootMode(!FOOT.on); });
+      $('btnSens').addEventListener('click', () => {
+        const opts = [1, 1.5, 2, 0.7];
+        FOOT.sens = opts[(opts.indexOf(FOOT.sens) + 1) % opts.length];
+        $('btnSens').textContent = 'Sensib. x' + FOOT.sens;
+        toast(FOOT.sens > 1 ? '🦶 Basta una patada más suave' : FOOT.sens < 1 ? '🦶 Hace falta patear más fuerte' : '🦶 Sensibilidad normal');
+      });
       $('btnSound').addEventListener('click', () => {
         sfxInit(); SFX.on = !SFX.on;
         $('btnSound').textContent = SFX.on ? '🔊' : '🔇';
